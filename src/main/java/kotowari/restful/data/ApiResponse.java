@@ -12,6 +12,11 @@ public class ApiResponse implements HasHeaders, HasStatus, HasBody {
     private Headers headers;
     private Object body;
 
+    public ApiResponse() {
+        headers = Headers.empty();
+        status = 200;
+    }
+
     public int getStatus() {
         return status;
     }

@@ -19,7 +19,7 @@ public class BeanValidator extends SystemComponent<BeanValidator> {
 
     @Override
     protected ComponentLifecycle<BeanValidator> lifecycle() {
-        return new ComponentLifecycle<>() {
+        return new ComponentLifecycle<BeanValidator>() {
             @Override
             public void start(BeanValidator component) {
                 component.validatorFactory = Validation.buildDefaultValidatorFactory();
@@ -28,7 +28,11 @@ public class BeanValidator extends SystemComponent<BeanValidator> {
 
             @Override
             public void stop(BeanValidator component) {
-                component.validatorFactory.close();
+                if (component.validatorFactory != null) {
+                    component.validatorFactory.close();
+                    component.validatorFactory = null;
+                }
+                component.validator = null;
             }
         };
     }

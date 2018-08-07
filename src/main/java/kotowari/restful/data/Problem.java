@@ -22,11 +22,17 @@ public class Problem implements Serializable{
         this.detail = detail;
         this.instance = instance;
     }
+
     public static <T> Problem fromViolations(Set<ConstraintViolation<T>> violations) {
         Problem problem = new Problem(null, "", 400, "", "");
         problem.violations = violations.stream()
                 .map(violation -> new Violation(violation))
                 .collect(Collectors.toList());
+        return problem;
+    }
+
+    public static Problem fromException(Exception e) {
+        Problem problem = new Problem(null, "Internal Server Error", 500, e.getMessage(), "");
         return problem;
     }
 
@@ -45,5 +51,29 @@ public class Problem implements Serializable{
         public String getMessage() {
             return message;
         }
+    }
+
+    public URI getType() {
+        return type;
+    }
+
+    public String getTitle() {
+        return title;
+    }
+
+    public int getStatus() {
+        return status;
+    }
+
+    public String getDetail() {
+        return detail;
+    }
+
+    public String getInstance() {
+        return instance;
+    }
+
+    public List<Violation> getViolations() {
+        return violations;
     }
 }

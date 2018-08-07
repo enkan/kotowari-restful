@@ -2,6 +2,7 @@ package kotowari.restful.middleware;
 
 import enkan.Middleware;
 import enkan.MiddlewareChain;
+import enkan.component.BeansConverter;
 import enkan.data.HttpRequest;
 import enkan.data.Routable;
 import enkan.exception.MisconfigurationException;
@@ -11,11 +12,10 @@ import kotowari.restful.ResourceEngine;
 import kotowari.restful.data.ApiResponse;
 import kotowari.restful.data.ClassResource;
 import kotowari.restful.data.DefaultResoruce;
-import kotowari.restful.inject.parameter.RestContextInjector;
 import kotowari.util.ParameterUtils;
 
 import javax.annotation.PostConstruct;
-import java.lang.reflect.Method;
+import javax.inject.Inject;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -27,6 +27,9 @@ public class ResourceInvokerMiddleware<RES> implements Middleware<HttpRequest, R
     private final ComponentInjector componentInjector;
     private final ResourceEngine engine;
     private List<ParameterInjector<?>> parameterInjectors;
+
+    @Inject
+    private BeansConverter beansConverter;
 
     public ResourceInvokerMiddleware(ComponentInjector componentInjector) {
         this.componentInjector = componentInjector;
@@ -51,11 +54,10 @@ public class ResourceInvokerMiddleware<RES> implements Middleware<HttpRequest, R
     @Override
     public RES handle(HttpRequest request, MiddlewareChain<Void, Void, ?, ?> next) {
         if (request instanceof Routable) {
-            Method resourceMethod = ((Routable) request).getControllerMethod();
-            Class<?> resourceClass = resourceMethod.getDeclaringClass();
+            Class<?> resourceClass = Routable.class.cast(request).getControllerClass();
 
             ClassResource classResource = controllerCache
-                    .computeIfAbsent(resourceClass, clazz -> new ClassResource(clazz, new DefaultResoruce(), componentInjector, parameterInjectors));
+                    .computeIfAbsent(resourceClass, clazz -> new ClassResource(clazz, new DefaultResoruce(), componentInjector, parameterInjectors, beansConverter));
 
             ApiResponse response = engine.run(classResource, request);
 
@@ -63,5 +65,9 @@ public class ResourceInvokerMiddleware<RES> implements Middleware<HttpRequest, R
         } else {
             throw new MisconfigurationException("kotowari.MISSING_IMPLEMENTATION", Routable.class);
         }
+    }
+
+    public void setParameterInjectors(List<ParameterInjector<?>> parameterInjectors) {
+        this.parameterInjectors = parameterInjectors;
     }
 }

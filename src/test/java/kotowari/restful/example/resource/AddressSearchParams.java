@@ -3,6 +3,7 @@ package kotowari.restful.example.resource;
 public class AddressSearchParams {
     private int limit;
     private int offset;
+    private String q;
 
     public int getLimit() {
         return limit;

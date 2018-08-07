@@ -2,6 +2,7 @@ package kotowari.restful;
 
 import enkan.data.HttpRequest;
 import kotowari.restful.data.ApiResponse;
+import kotowari.restful.data.Problem;
 import kotowari.restful.data.Resource;
 import kotowari.restful.data.RestContext;
 import kotowari.restful.decision.Decision;
@@ -10,25 +11,29 @@ import kotowari.restful.decision.Node;
 
 import java.util.*;
 import java.util.function.Function;
-import java.util.regex.Pattern;
 
 import static enkan.util.BeanBuilder.*;
 import static kotowari.restful.DecisionPoint.*;
 import static kotowari.restful.decision.DecisionFactory.*;
 
 public class ResourceEngine {
-    private Map<Pattern, Resource> resources = new HashMap<>();
-
     private ApiResponse runDecisionGraph(RestContext context) {
         Node<?> decisionNode = createDefaultGraph();
-        do {
-            if (decisionNode instanceof Decision) {
-                decisionNode = ((Decision) decisionNode).execute(context);
-            } else if (decisionNode instanceof Handler){
-                return ((Handler) decisionNode).execute(context);
-            }
-        } while(decisionNode != null);
 
+        try {
+            do {
+                if (decisionNode instanceof Decision) {
+                    decisionNode = ((Decision) decisionNode).execute(context);
+                } else if (decisionNode instanceof Handler) {
+                    return ((Handler) decisionNode).execute(context);
+                }
+            } while (decisionNode != null);
+        } catch(Exception e) {
+            return builder(new ApiResponse())
+                    .set(ApiResponse::setStatus, 500)
+                    .set(ApiResponse::setBody, Problem.fromException(e))
+                    .build();
+        }
         return builder(new ApiResponse())
                 .set(ApiResponse::setStatus, 500)
                 .build();
@@ -69,7 +74,7 @@ public class ResourceEngine {
         Node handleGone      = handler(HANDLE_GONE, 410, "Resource is gone");
         Node post            = action(POST, isPostEnacted);
         Node canPostToMissing= decision(CAN_POST_TO_MISSING, post, handleNotFound);
-        Node postToMissing   = decision(POST_TO_MISSING, canPostToMissing, handleNotFound);
+        Node postToMissing   = decision(POST_TO_MISSING, createIsMethod("POST"), canPostToMissing, handleNotFound);
         Node handleMovedPermanently = handler(HANDLE_MOVED_PERMANENTLY, 301, null);
         Node handleMovedTemporarily = handler(HANDLE_MOVED_TEMPORARILY, 307, null);
         Node canPostToGone   = decision(CAN_POST_TO_GONE, post, handleGone);

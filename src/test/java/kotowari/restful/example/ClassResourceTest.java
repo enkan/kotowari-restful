@@ -69,7 +69,8 @@ public class ClassResourceTest {
         LinkedList<ParameterInjector<?>> parameterInjectors = ParameterUtils.getDefaultParameterInjectors();
         ClassResource resource = new ClassResource(AddressesResource.class, new DefaultResoruce(),
                 componentInjector,
-                parameterInjectors);
+                parameterInjectors,
+                system.getComponent("beans"));
         Method method = tryReflection(() -> AddressesResource.class.getMethod("getClass"));
         HttpRequest request = builder(new DefaultHttpRequest())
                 .set(HttpRequest::setRequestMethod, "GET")

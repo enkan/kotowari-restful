@@ -2,28 +2,29 @@ package kotowari.restful.example.resource;
 
 import enkan.collection.Parameters;
 import enkan.component.BeansConverter;
-import enkan.component.doma2.DomaProvider;
 import kotowari.restful.Decision;
 import kotowari.restful.component.BeanValidator;
 import kotowari.restful.data.Problem;
 import kotowari.restful.data.RestContext;
-import kotowari.restful.example.dao.AddressDao;
 import kotowari.restful.example.entity.Address;
-import org.seasar.doma.jdbc.SelectOptions;
 
 import javax.inject.Inject;
+import javax.persistence.EntityManager;
+import javax.persistence.EntityTransaction;
+import javax.persistence.criteria.CriteriaBuilder;
+import javax.persistence.criteria.CriteriaQuery;
+import javax.persistence.criteria.Root;
+import javax.transaction.Transactional;
 import javax.validation.ConstraintViolation;
 import java.util.List;
 import java.util.Set;
 
 import static kotowari.restful.DecisionPoint.*;
 
+@Transactional
 public class AddressesResource {
     @Inject
     private BeanValidator validator;
-
-    @Inject
-    private DomaProvider daoProvider;
 
     @Inject
     private BeansConverter beansConverter;
@@ -43,18 +44,21 @@ public class AddressesResource {
     }
 
     @Decision(HANDLE_OK)
-    public List<Address> handleOk(AddressSearchParams params) {
-        AddressDao addressDao = daoProvider.getDao(AddressDao.class);
-        SelectOptions options = SelectOptions.get();
-        options.limit(params.getLimit());
-        options.offset(params.getOffset());
-        return addressDao.findAll(options);
+    public List<Address> handleOk(AddressSearchParams params, EntityManager em) {
+        CriteriaBuilder builder = em.getCriteriaBuilder();
+        CriteriaQuery<Address> query = builder.createQuery(Address.class);
+        Root<Address> root = query.from(Address.class);
+        query.select(root);
+
+        return em.createQuery(query)
+                .setFirstResult(params.getOffset())
+                .setMaxResults(params.getLimit())
+                .getResultList();
     }
 
     @Decision(POST)
-    public Address handleCreated(Address address) {
-        AddressDao addressDao = daoProvider.getDao(AddressDao.class);
-        addressDao.insert(address);
+    public Address handleCreated(Address address, EntityManager em) {
+        em.persist(address);
         return address;
     }
 }

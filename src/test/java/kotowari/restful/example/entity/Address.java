@@ -1,17 +1,21 @@
 package kotowari.restful.example.entity;
 
-import org.seasar.doma.Entity;
-import org.seasar.doma.Id;
+
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.Id;
 
 @Entity
 public class Address {
     @Id
     private Long id;
+    @Column(name = "CARE_OF")
     private String careOf;
     private String street;
     private String additional;
     private String city;
     private String zip;
+    @Column(name = "COUNTRY_CODE")
     private String countryCode;
 
     public Long getId() {

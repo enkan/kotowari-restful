@@ -1,7 +1,9 @@
 package kotowari.restful.data;
 
+import enkan.component.BeansConverter;
 import enkan.data.HttpRequest;
 import enkan.system.inject.ComponentInjector;
+import kotowari.data.BodyDeserializable;
 import kotowari.inject.ParameterInjector;
 import kotowari.inject.parameter.BodySerializableInjector;
 import kotowari.restful.Decision;
@@ -21,9 +23,10 @@ public class ClassResource implements Resource {
     private static final ParameterInjector<?> BODY_SERIALIZABLE_INJECTOR = new BodySerializableInjector<>();
     private static final RestContextInjector REST_CONTEXT_INJECTOR = new RestContextInjector();
 
-    private Map<DecisionPoint, Function<RestContext, ?>> functions;
-    private Resource parent;
-    private Object instance;
+    private final Map<DecisionPoint, Function<RestContext, ?>> functions;
+    private final Resource parent;
+    private final Object instance;
+    private final BeansConverter beansConverter;
 
     protected Object[] createArguments(RestContext context, MethodMeta meta, List<ParameterInjector<?>> parameterInjectors) {
         Object[] arguments = new Object[meta.method.getParameterCount()];
@@ -42,8 +45,10 @@ public class ClassResource implements Resource {
                 if (REST_CONTEXT_INJECTOR.isApplicable(type, context)) {
                     arguments[parameterIndex] = REST_CONTEXT_INJECTOR.getInjectObject(context, type);
 
-                } else {
+                } else if (type.isAssignableFrom(BodyDeserializable.class.cast(req).getDeserializedBody().getClass())) {
                     arguments[parameterIndex] = BODY_SERIALIZABLE_INJECTOR.getInjectObject(req);
+                } else {
+                    arguments[parameterIndex] = beansConverter.createFrom(BodyDeserializable.class.cast(req).getDeserializedBody(), type);
                 }
             } else {
                 arguments[parameterIndex] = parameterInjector.getInjectObject(req);
@@ -56,9 +61,11 @@ public class ClassResource implements Resource {
 
     public ClassResource(Class<?> resourceClass, Resource parent,
                          ComponentInjector componentInjector,
-                         List<ParameterInjector<?>> parameterInjectors) {
+                         List<ParameterInjector<?>> parameterInjectors,
+                         BeansConverter beansConverter) {
         instance = tryReflection(() -> componentInjector.inject(resourceClass.getConstructor().newInstance()));
         this.parent = parent;
+        this.beansConverter = beansConverter;
         functions = new HashMap<>();
         Map<DecisionPoint, List<Method>> resourceMethods = Arrays.stream(resourceClass.getMethods())
             .filter(method -> tryReflection(() -> method.getAnnotation(Decision.class) != null))
