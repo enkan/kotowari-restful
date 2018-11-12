@@ -14,6 +14,7 @@ import enkan.data.Routable;
 import enkan.system.EnkanSystem;
 import enkan.system.inject.ComponentInjector;
 import enkan.util.MixinUtils;
+import kotowari.data.BodyDeserializable;
 import kotowari.inject.ParameterInjector;
 import kotowari.restful.ResourceEngine;
 import kotowari.restful.component.BeanValidator;
@@ -78,7 +79,7 @@ public class ClassResourceTest {
                 .set(HttpRequest::setContentType, "application/json")
                 .set(HttpRequest::setHeaders, Headers.empty())
                 .build();
-        request = MixinUtils.mixin(request, Routable.class);
+        request = MixinUtils.mixin(request, Routable.class, BodyDeserializable.class);
         Routable.class.cast(request).setControllerMethod(method);
         ApiResponse response = resourceEngine.run(resource, request);
         System.out.println(response);

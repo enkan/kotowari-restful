@@ -33,7 +33,7 @@ public class Decision implements Node<Node<?>> {
         }
         if (ftest == null) throw new NullPointerException(point.name());
         Object fres = ftest.apply(context);
-        boolean result = true;
+        boolean result;
         if (fres == null) {
             result = false;
         } else if (fres instanceof Boolean) {

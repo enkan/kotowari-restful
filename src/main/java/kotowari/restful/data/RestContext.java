@@ -8,6 +8,13 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 
+/**
+ * The context of RESTful API.
+ *
+ * A context contains a request object and a resource object.
+ *
+ * @author kawasima
+ */
 public class RestContext {
     private final Resource resource;
     private final HttpRequest request;

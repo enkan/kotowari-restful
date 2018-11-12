@@ -4,10 +4,14 @@ import kotowari.restful.DecisionPoint;
 import kotowari.restful.data.ApiResponse;
 import kotowari.restful.data.RestContext;
 import kotowari.restful.data.SimpleMessage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.function.Function;
 
 public class Handler implements Node<ApiResponse> {
+    private static final Logger LOG = LoggerFactory.getLogger("kotowari.restful.decision");
+
     private DecisionPoint point;
     private int statusCode;
     private Object message;
@@ -23,6 +27,7 @@ public class Handler implements Node<ApiResponse> {
 
     @Override
     public ApiResponse execute(RestContext context) {
+        LOG.info("{}", point.name());
         Function<RestContext, ?> ftest = context.getResourceFunction(point);
         if (ftest != null) {
             Object fres = ftest.apply(context);

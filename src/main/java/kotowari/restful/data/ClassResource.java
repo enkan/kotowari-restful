@@ -9,6 +9,7 @@ import kotowari.inject.parameter.BodySerializableInjector;
 import kotowari.restful.Decision;
 import kotowari.restful.DecisionPoint;
 import kotowari.restful.inject.parameter.RestContextInjector;
+import kotowari.restful.resource.AllowedMethods;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
@@ -26,6 +27,7 @@ public class ClassResource implements Resource {
     private final Map<DecisionPoint, Function<RestContext, ?>> functions;
     private final Resource parent;
     private final Object instance;
+    private final Function<RestContext, ?> methodAllowedFunc;
     private final BeansConverter beansConverter;
 
     protected Object[] createArguments(RestContext context, MethodMeta meta, List<ParameterInjector<?>> parameterInjectors) {
@@ -58,6 +60,16 @@ public class ClassResource implements Resource {
         return arguments;
     }
 
+    private Set<String> parseAllowedMethods(Class<?> resourceClass) {
+        AllowedMethods allowedMethods = resourceClass.getAnnotation(AllowedMethods.class);
+        if (allowedMethods == null) {
+            return Set.of("GET", "HEAD");
+        } else {
+            return Arrays.stream(allowedMethods.value())
+                    .map(m -> m.toUpperCase(Locale.US))
+                    .collect(Collectors.toSet());
+        }
+    }
 
     public ClassResource(Class<?> resourceClass, Resource parent,
                          ComponentInjector componentInjector,
@@ -66,6 +78,8 @@ public class ClassResource implements Resource {
         instance = tryReflection(() -> componentInjector.inject(resourceClass.getConstructor().newInstance()));
         this.parent = parent;
         this.beansConverter = beansConverter;
+        Set<String> allowedMethods = parseAllowedMethods(resourceClass);
+        methodAllowedFunc = context -> allowedMethods.contains(context.getRequest().getRequestMethod().toUpperCase(Locale.US));
         functions = new HashMap<>();
         Map<DecisionPoint, List<Method>> resourceMethods = Arrays.stream(resourceClass.getMethods())
             .filter(method -> tryReflection(() -> method.getAnnotation(Decision.class) != null))
@@ -73,6 +87,7 @@ public class ClassResource implements Resource {
                 Decision decision = method.getAnnotation(Decision.class);
                 return decision.value();
             }, Collectors.toList()));
+
 
         resourceMethods.forEach((point, methods) -> {
             Map<String, MethodMeta> httpMethodMap = new HashMap<>();
@@ -98,10 +113,14 @@ public class ClassResource implements Resource {
             });
         });
     }
+
     @Override
     public Function<RestContext, ?> getFunction(DecisionPoint point) {
         Function<RestContext, ?> f = functions.get(point);
         if (f != null) return f;
+        if (point == DecisionPoint.METHOD_ALLOWED) {
+            return methodAllowedFunc;
+        }
         return parent.getFunction(point);
     }
 
@@ -112,8 +131,6 @@ public class ClassResource implements Resource {
         MethodMeta(Method method) {
             this.method = method;
             parameters = method.getParameters();
-            Arrays.stream(parameters)
-                    .map(param -> param.getName());
         }
     }
 }
