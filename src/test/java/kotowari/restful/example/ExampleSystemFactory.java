@@ -10,7 +10,7 @@ import enkan.component.jackson.JacksonBeansConverter;
 import enkan.component.undertow.UndertowComponent;
 import enkan.config.EnkanSystemFactory;
 import enkan.system.EnkanSystem;
-import kotowari.restful.component.BeanValidator;
+import kotowari.restful.component.BeansValidator;
 import kotowari.restful.example.entity.Address;
 
 import static enkan.component.ComponentRelationship.*;
@@ -23,7 +23,7 @@ public class ExampleSystemFactory implements EnkanSystemFactory {
                 "jpa", builder(new EclipseLinkEntityManagerProvider())
                         .set(EclipseLinkEntityManagerProvider::registerClass, Address.class)
                         .build(),
-                "validator", new BeanValidator(),
+                "validator", new BeansValidator(),
                 "datasource", builder(new HikariCPComponent(OptionMap.of(
                             "uri", "jdbc:h2:mem:test"
                     )))

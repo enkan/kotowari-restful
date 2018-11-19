@@ -17,7 +17,7 @@ import enkan.util.MixinUtils;
 import kotowari.data.BodyDeserializable;
 import kotowari.inject.ParameterInjector;
 import kotowari.restful.ResourceEngine;
-import kotowari.restful.component.BeanValidator;
+import kotowari.restful.component.BeansValidator;
 import kotowari.restful.data.ApiResponse;
 import kotowari.restful.data.ClassResource;
 import kotowari.restful.data.DefaultResoruce;
@@ -45,7 +45,7 @@ public class ClassResourceTest {
         resourceEngine = new ResourceEngine();
         system = EnkanSystem.of(
                 "beans", new JacksonBeansConverter(),
-                "validator", new BeanValidator(),
+                "validator", new BeansValidator(),
                 "doma", builder(new DomaProvider())
                         .set(DomaProvider::setDialect, new H2Dialect())
                         .set(DomaProvider::setNaming, Naming.SNAKE_UPPER_CASE)

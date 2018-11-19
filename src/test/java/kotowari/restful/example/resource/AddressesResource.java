@@ -3,7 +3,7 @@ package kotowari.restful.example.resource;
 import enkan.collection.Parameters;
 import enkan.component.BeansConverter;
 import kotowari.restful.Decision;
-import kotowari.restful.component.BeanValidator;
+import kotowari.restful.component.BeansValidator;
 import kotowari.restful.data.Problem;
 import kotowari.restful.data.RestContext;
 import kotowari.restful.example.entity.Address;
@@ -23,7 +23,7 @@ import static kotowari.restful.DecisionPoint.*;
 @Transactional
 public class AddressesResource {
     @Inject
-    private BeanValidator validator;
+    private BeansValidator validator;
 
     @Inject
     private BeansConverter beansConverter;

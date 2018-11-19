@@ -9,7 +9,7 @@ import javax.validation.Validator;
 import javax.validation.ValidatorFactory;
 import java.util.Set;
 
-public class BeanValidator extends SystemComponent<BeanValidator> {
+public class BeansValidator extends SystemComponent<BeansValidator> {
     private ValidatorFactory validatorFactory;
     private Validator validator;
 
@@ -18,16 +18,16 @@ public class BeanValidator extends SystemComponent<BeanValidator> {
     }
 
     @Override
-    protected ComponentLifecycle<BeanValidator> lifecycle() {
-        return new ComponentLifecycle<BeanValidator>() {
+    protected ComponentLifecycle<BeansValidator> lifecycle() {
+        return new ComponentLifecycle<BeansValidator>() {
             @Override
-            public void start(BeanValidator component) {
+            public void start(BeansValidator component) {
                 component.validatorFactory = Validation.buildDefaultValidatorFactory();
                 component.validator = component.validatorFactory.getValidator();
             }
 
             @Override
-            public void stop(BeanValidator component) {
+            public void stop(BeansValidator component) {
                 if (component.validatorFactory != null) {
                     component.validatorFactory.close();
                     component.validatorFactory = null;
