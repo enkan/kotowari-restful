@@ -11,7 +11,7 @@ import kotowari.inject.ParameterInjector;
 import kotowari.restful.ResourceEngine;
 import kotowari.restful.data.ApiResponse;
 import kotowari.restful.data.ClassResource;
-import kotowari.restful.data.DefaultResoruce;
+import kotowari.restful.data.DefaultResouruce;
 import kotowari.util.ParameterUtils;
 
 import javax.annotation.PostConstruct;
@@ -57,7 +57,7 @@ public class ResourceInvokerMiddleware<RES> implements Middleware<HttpRequest, R
             Class<?> resourceClass = Routable.class.cast(request).getControllerClass();
 
             ClassResource classResource = controllerCache
-                    .computeIfAbsent(resourceClass, clazz -> new ClassResource(clazz, new DefaultResoruce(), componentInjector, parameterInjectors, beansConverter));
+                    .computeIfAbsent(resourceClass, clazz -> new ClassResource(clazz, new DefaultResouruce(), componentInjector, parameterInjectors, beansConverter));
 
             ApiResponse response = engine.run(classResource, request);
 

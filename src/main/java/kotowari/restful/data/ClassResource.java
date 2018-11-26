@@ -108,8 +108,12 @@ public class ClassResource implements Resource {
                 MethodMeta meta = httpMethodMap.getOrDefault(
                     context.getRequest().getRequestMethod().toUpperCase(Locale.US),
                     fallbackMethod.get());
-                Object[] arguments = createArguments(context, meta, parameterInjectors);
-                return tryReflection(() -> meta.method.invoke(instance, arguments));
+                if (meta != null) {
+                    Object[] arguments = createArguments(context, meta, parameterInjectors);
+                    return tryReflection(() -> meta.method.invoke(instance, arguments));
+                } else {
+                    return parent.getFunction(point).apply(context);
+                }
             });
         });
     }

@@ -20,7 +20,7 @@ import kotowari.restful.ResourceEngine;
 import kotowari.restful.component.BeansValidator;
 import kotowari.restful.data.ApiResponse;
 import kotowari.restful.data.ClassResource;
-import kotowari.restful.data.DefaultResoruce;
+import kotowari.restful.data.DefaultResouruce;
 import kotowari.restful.example.resource.AddressesResource;
 import kotowari.util.ParameterUtils;
 import org.junit.jupiter.api.AfterEach;
@@ -68,7 +68,7 @@ public class ClassResourceTest {
                 "validator", system.getComponent("validator"),
                 "doma", system.getComponent("doma")));
         LinkedList<ParameterInjector<?>> parameterInjectors = ParameterUtils.getDefaultParameterInjectors();
-        ClassResource resource = new ClassResource(AddressesResource.class, new DefaultResoruce(),
+        ClassResource resource = new ClassResource(AddressesResource.class, new DefaultResouruce(),
                 componentInjector,
                 parameterInjectors,
                 system.getComponent("beans"));

@@ -10,7 +10,7 @@ import static enkan.util.ThreadingUtils.some;
 import static java.util.Map.*;
 import static kotowari.restful.DecisionPoint.*;
 
-public class DefaultResoruce implements Resource {
+public class DefaultResouruce implements Resource {
     private static Function<RestContext, ?> TRUE = (context) -> true;
     private static Function<RestContext, ?> FALSE = (context) -> false;
     private Function<RestContext, ?> testRequestMethod(String... methods) {
@@ -24,7 +24,7 @@ public class DefaultResoruce implements Resource {
         };
     }
 
-    private Map<DecisionPoint, Function<RestContext, ?>> defautFunctions = Map.ofEntries(
+    private Map<DecisionPoint, Function<RestContext, ?>> defaultFunctions = Map.ofEntries(
             entry(INITIALIZE_CONTEXT,     context -> context),
             entry(SERVICE_AVAILABLE,      TRUE),
             entry(KNOWN_METHOD,           testRequestMethod("GET", "HEAD", "OPTIONS", "POST", "PUT", "DELETE", "PATCH")),
@@ -64,6 +64,6 @@ public class DefaultResoruce implements Resource {
 
     @Override
     public Function<RestContext, ?> getFunction(DecisionPoint point) {
-        return defautFunctions.get(point);
+        return defaultFunctions.get(point);
     }
 }
