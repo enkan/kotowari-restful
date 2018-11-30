@@ -45,9 +45,15 @@ public class Problem implements Serializable{
     public static class Violation<T> implements Serializable {
         private String field;
         private String message;
+
         public Violation(ConstraintViolation<T> constraintViolation) {
             this.field = constraintViolation.getPropertyPath().toString();
             this.message = constraintViolation.getMessage();
+        }
+
+        public Violation(String field, String message) {
+            this.field = field;
+            this.message = message;
         }
 
         public String getField() {
