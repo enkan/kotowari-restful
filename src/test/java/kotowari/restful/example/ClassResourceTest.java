@@ -20,7 +20,7 @@ import kotowari.restful.ResourceEngine;
 import kotowari.restful.component.BeansValidator;
 import kotowari.restful.data.ApiResponse;
 import kotowari.restful.data.ClassResource;
-import kotowari.restful.data.DefaultResouruce;
+import kotowari.restful.data.DefaultResource;
 import kotowari.restful.example.resource.AddressesResource;
 import kotowari.util.ParameterUtils;
 import org.junit.jupiter.api.AfterEach;
@@ -33,7 +33,7 @@ import java.lang.reflect.Method;
 import java.util.LinkedList;
 import java.util.Map;
 
-import static enkan.util.BeanBuilder.*;
+import static enkan.util.BeanBuilder.builder;
 import static enkan.util.ReflectionUtils.tryReflection;
 
 public class ClassResourceTest {
@@ -68,7 +68,7 @@ public class ClassResourceTest {
                 "validator", system.getComponent("validator"),
                 "doma", system.getComponent("doma")));
         LinkedList<ParameterInjector<?>> parameterInjectors = ParameterUtils.getDefaultParameterInjectors();
-        ClassResource resource = new ClassResource(AddressesResource.class, new DefaultResouruce(),
+        ClassResource resource = new ClassResource(AddressesResource.class, new DefaultResource(),
                 componentInjector,
                 parameterInjectors,
                 system.getComponent("beans"));
@@ -80,7 +80,7 @@ public class ClassResourceTest {
                 .set(HttpRequest::setHeaders, Headers.empty())
                 .build();
         request = MixinUtils.mixin(request, Routable.class, BodyDeserializable.class);
-        Routable.class.cast(request).setControllerMethod(method);
+        ((Routable) request).setControllerMethod(method);
         ApiResponse response = resourceEngine.run(resource, request);
         System.out.println(response);
     }

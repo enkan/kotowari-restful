@@ -19,7 +19,7 @@ public class BeansValidator extends SystemComponent<BeansValidator> {
 
     @Override
     protected ComponentLifecycle<BeansValidator> lifecycle() {
-        return new ComponentLifecycle<BeansValidator>() {
+        return new ComponentLifecycle<>() {
             @Override
             public void start(BeansValidator component) {
                 component.validatorFactory = Validation.buildDefaultValidatorFactory();

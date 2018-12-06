@@ -13,8 +13,8 @@ import enkan.system.EnkanSystem;
 import kotowari.restful.component.BeansValidator;
 import kotowari.restful.example.entity.Address;
 
-import static enkan.component.ComponentRelationship.*;
-import static enkan.util.BeanBuilder.*;
+import static enkan.component.ComponentRelationship.component;
+import static enkan.util.BeanBuilder.builder;
 
 public class ExampleSystemFactory implements EnkanSystemFactory {
     @Override

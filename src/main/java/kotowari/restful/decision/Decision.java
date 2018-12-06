@@ -37,7 +37,7 @@ public class Decision implements Node<Node<?>> {
         if (fres == null) {
             result = false;
         } else if (fres instanceof Boolean) {
-            result = ((Boolean) fres).booleanValue();
+            result = (Boolean) fres;
         } else {
             result = true;
         }

@@ -2,15 +2,23 @@ package kotowari.restful.data;
 
 import kotowari.restful.DecisionPoint;
 
-import java.util.*;
+import java.util.Arrays;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static enkan.util.ThreadingUtils.some;
-import static java.util.Map.*;
+import static java.util.Map.entry;
 import static kotowari.restful.DecisionPoint.*;
 
-public class DefaultResouruce implements Resource {
+/**
+ * A default resource.
+ *
+ * @author kawasima
+ */
+public class DefaultResource implements Resource {
     private static Function<RestContext, ?> TRUE = (context) -> true;
     private static Function<RestContext, ?> FALSE = (context) -> false;
     private Function<RestContext, ?> testRequestMethod(String... methods) {
@@ -65,5 +73,10 @@ public class DefaultResouruce implements Resource {
     @Override
     public Function<RestContext, ?> getFunction(DecisionPoint point) {
         return defaultFunctions.get(point);
+    }
+
+
+    protected Map<DecisionPoint, Function<RestContext, ?>> getDefaultFunctions() {
+        return defaultFunctions;
     }
 }

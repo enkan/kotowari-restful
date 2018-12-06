@@ -25,9 +25,7 @@ import static enkan.util.BeanBuilder.builder;
 public class ExampleApplicationFactory implements ApplicationFactory {
     @Override
     public Application create(ComponentInjector injector) {
-        Routes routes = Routes.define(r -> {
-            r.all("/addresses").to(AddressesResource.class);
-        }).compile();
+        Routes routes = Routes.define(r -> r.all("/addresses").to(AddressesResource.class)).compile();
 
         List<ParameterInjector<?>> parameterInjectors = List.of(
                 new HttpRequestInjector(),

@@ -38,8 +38,7 @@ public class Problem implements Serializable{
     }
 
     public static Problem fromException(Exception e) {
-        Problem problem = new Problem(null, "Internal Server Error", 500, e.getMessage(), "");
-        return problem;
+        return new Problem(null, "Internal Server Error", 500, e.getMessage(), "");
     }
 
     public static class Violation<T> implements Serializable {

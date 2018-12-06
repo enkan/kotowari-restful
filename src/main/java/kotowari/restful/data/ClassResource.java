@@ -43,14 +43,17 @@ public class ClassResource implements Resource {
                     .findAny()
                     .orElse(BODY_SERIALIZABLE_INJECTOR);
 
+            Object deserializedBody = ((BodyDeserializable) req).getDeserializedBody();
             if (parameterInjector == BODY_SERIALIZABLE_INJECTOR) {
                 if (REST_CONTEXT_INJECTOR.isApplicable(type, context)) {
                     arguments[parameterIndex] = REST_CONTEXT_INJECTOR.getInjectObject(context, type);
 
-                } else if (type.isAssignableFrom(BodyDeserializable.class.cast(req).getDeserializedBody().getClass())) {
+                } else if (deserializedBody == null) {
+                    arguments[parameterIndex] = null;
+                }else if (type.isAssignableFrom(deserializedBody.getClass())) {
                     arguments[parameterIndex] = BODY_SERIALIZABLE_INJECTOR.getInjectObject(req);
                 } else {
-                    arguments[parameterIndex] = beansConverter.createFrom(BodyDeserializable.class.cast(req).getDeserializedBody(), type);
+                    arguments[parameterIndex] = beansConverter.createFrom(deserializedBody, type);
                 }
             } else {
                 arguments[parameterIndex] = parameterInjector.getInjectObject(req);

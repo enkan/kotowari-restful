@@ -11,7 +11,8 @@ import kotowari.inject.ParameterInjector;
 import kotowari.restful.ResourceEngine;
 import kotowari.restful.data.ApiResponse;
 import kotowari.restful.data.ClassResource;
-import kotowari.restful.data.DefaultResouruce;
+import kotowari.restful.data.DefaultResource;
+import kotowari.restful.data.Resource;
 import kotowari.util.ParameterUtils;
 
 import javax.annotation.PostConstruct;
@@ -20,6 +21,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * A middleware for invoking a resource.
+ *
+ * @param <RES> The type of the response.
+ * @author kawasima
+ */
 @enkan.annotation.Middleware(name = "resourceInvoker", dependencies = "params")
 public class ResourceInvokerMiddleware<RES> implements Middleware<HttpRequest, RES, Void, Void> {
     private final Map<Class<?>, ClassResource> controllerCache = new ConcurrentHashMap<>();
@@ -27,6 +34,7 @@ public class ResourceInvokerMiddleware<RES> implements Middleware<HttpRequest, R
     private final ComponentInjector componentInjector;
     private final ResourceEngine engine;
     private List<ParameterInjector<?>> parameterInjectors;
+    private Resource baseResource;
 
     @Inject
     private BeansConverter beansConverter;
@@ -41,6 +49,9 @@ public class ResourceInvokerMiddleware<RES> implements Middleware<HttpRequest, R
         if (parameterInjectors == null) {
             parameterInjectors = ParameterUtils.getDefaultParameterInjectors();
         }
+        if (baseResource == null) {
+             baseResource = new DefaultResource();
+        }
     }
 
     private Object inject(Object controller) {
@@ -50,14 +61,21 @@ public class ResourceInvokerMiddleware<RES> implements Middleware<HttpRequest, R
         return controller;
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * @param request {@inheritDoc}
+     * @param next {@inheritDoc}
+     * @return {@inheritDoc}
+     */
     @SuppressWarnings("unchecked")
     @Override
     public RES handle(HttpRequest request, MiddlewareChain<Void, Void, ?, ?> next) {
         if (request instanceof Routable) {
-            Class<?> resourceClass = Routable.class.cast(request).getControllerClass();
+            Class<?> resourceClass = ((Routable) request).getControllerClass();
 
             ClassResource classResource = controllerCache
-                    .computeIfAbsent(resourceClass, clazz -> new ClassResource(clazz, new DefaultResouruce(), componentInjector, parameterInjectors, beansConverter));
+                    .computeIfAbsent(resourceClass, clazz -> new ClassResource(clazz, baseResource, componentInjector, parameterInjectors, beansConverter));
 
             ApiResponse response = engine.run(classResource, request);
 
@@ -67,7 +85,21 @@ public class ResourceInvokerMiddleware<RES> implements Middleware<HttpRequest, R
         }
     }
 
+    /**
+     * Set the list of parameter injectors.
+     *
+     * @param parameterInjectors the list of parameter injectors
+     */
     public void setParameterInjectors(List<ParameterInjector<?>> parameterInjectors) {
         this.parameterInjectors = parameterInjectors;
+    }
+
+    /**
+     * Set the base resource.
+     *
+     * @param baseResource the base resource
+     */
+    public void setDefaultResource(Resource baseResource) {
+        this.baseResource = baseResource;
     }
 }
