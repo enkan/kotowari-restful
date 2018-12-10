@@ -76,12 +76,6 @@
         </dependency>
         <dependency>
             <groupId>net.unit8.enkan</groupId>
-            <artifactId>enkan-component-doma2</artifactId>
-            <version>${enkan.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>net.unit8.enkan</groupId>
             <artifactId>enkan-component-jackson</artifactId>
             <version>${enkan.version}</version>
             <scope>test</scope>
