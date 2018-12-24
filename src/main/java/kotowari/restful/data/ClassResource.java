@@ -53,6 +53,7 @@ public class ClassResource implements Resource {
                 }else if (type.isAssignableFrom(deserializedBody.getClass())) {
                     arguments[parameterIndex] = BODY_SERIALIZABLE_INJECTOR.getInjectObject(req);
                 } else {
+                    // TODO must return 400 Malformed Request
                     arguments[parameterIndex] = beansConverter.createFrom(deserializedBody, type);
                 }
             } else {
