@@ -2,6 +2,11 @@ package kotowari.restful.inject.parameter;
 
 import kotowari.restful.data.RestContext;
 
+/**
+ * A RestContext injector.
+ *
+ * @author kawasima
+ */
 public class RestContextInjector {
     public boolean isApplicable(Class<?> type, RestContext context) {
         return RestContext.class.isAssignableFrom(type) || context.getValue(type).isPresent();
@@ -14,4 +19,5 @@ public class RestContextInjector {
             return context.getValue(type).orElse(null);
         }
     }
+
 }

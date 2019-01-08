@@ -1,15 +1,17 @@
 package db.migration;
 
-import org.flywaydb.core.api.migration.jdbc.JdbcMigration;
+import org.flywaydb.core.api.migration.BaseJavaMigration;
+import org.flywaydb.core.api.migration.Context;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.Statement;
 
-public class V1__CreateAddress implements JdbcMigration {
+public class V1__CreateAddress extends BaseJavaMigration {
     private static final String INS = "INSERT INTO address(country_code, zip, city) VALUES(?,?,?)";
     @Override
-    public void migrate(Connection connection) throws Exception {
+    public void migrate(Context context) throws Exception {
+        Connection connection = context.getConnection();
         try(Statement stmt = connection.createStatement()) {
             stmt.execute("CREATE TABLE address(" +
                     "id IDENTITY NOT NULL," +

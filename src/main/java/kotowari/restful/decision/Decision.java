@@ -39,6 +39,7 @@ public class Decision implements Node<Node<?>> {
         } else if (fres instanceof Boolean) {
             result = (Boolean) fres;
         } else {
+            context.setMessage(fres);
             result = true;
         }
         return result ? thenNode : elseNode;

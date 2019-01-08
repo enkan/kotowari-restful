@@ -9,6 +9,11 @@ import javax.validation.Validator;
 import javax.validation.ValidatorFactory;
 import java.util.Set;
 
+/**
+ * A component for validating beans.
+ *
+ * @author kawasima
+ */
 public class BeansValidator extends SystemComponent<BeansValidator> {
     private ValidatorFactory validatorFactory;
     private Validator validator;
@@ -17,6 +22,10 @@ public class BeansValidator extends SystemComponent<BeansValidator> {
          return validator.validate(bean);
     }
 
+    /**
+     * {@inheritDoc}
+     * @return {@inheritDoc}
+     */
     @Override
     protected ComponentLifecycle<BeansValidator> lifecycle() {
         return new ComponentLifecycle<>() {

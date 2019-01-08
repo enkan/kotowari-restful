@@ -11,6 +11,11 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+/**
+ * A representation for problem JSON.
+ *
+ * @author kawasima
+ */
 public class Problem implements Serializable{
     private static final URI DEFAULT_TYPE = URI.create("about:blank");
     private URI type;

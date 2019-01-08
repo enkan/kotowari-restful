@@ -26,14 +26,12 @@ import kotowari.restful.data.ClassResource;
 import kotowari.restful.data.DefaultResource;
 import kotowari.restful.example.entity.Address;
 import kotowari.restful.example.resource.AddressesResource;
-import kotowari.util.ParameterUtils;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import javax.persistence.EntityManager;
 import java.lang.reflect.Method;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
@@ -107,7 +105,7 @@ public class ClassResourceTest {
     public void tearDown() {
         if (system != null) {
             system.stop();
-        };
+        }
     }
 
 }

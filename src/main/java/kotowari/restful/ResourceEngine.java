@@ -14,13 +14,25 @@ import org.slf4j.LoggerFactory;
 import java.util.*;
 import java.util.function.Function;
 
-import static enkan.util.BeanBuilder.*;
+import static enkan.util.BeanBuilder.builder;
 import static kotowari.restful.DecisionPoint.*;
 import static kotowari.restful.decision.DecisionFactory.*;
 
+/**
+ * Executor for a decision graph.
+ *
+ * @author kawasima
+ */
 public class ResourceEngine {
     private static final Logger LOG = LoggerFactory.getLogger(ResourceEngine.class);
-    private ApiResponse runDecisionGraph(RestContext context) {
+
+    /**
+     * Execute a decision graph with the given context.
+     *
+     * @param context REST Context
+     * @return API response
+     */
+    protected ApiResponse runDecisionGraph(RestContext context) {
         Node<?> decisionNode = createDefaultGraph();
 
         try {
@@ -35,6 +47,7 @@ public class ResourceEngine {
             LOG.error("Error occurs at handling resource", e);
             return builder(new ApiResponse())
                     .set(ApiResponse::setStatus, 500)
+                    // TODO Add a flag to stop output detail.
                     .set(ApiResponse::setBody, Problem.fromException(e))
                     .build();
         }
@@ -42,9 +55,16 @@ public class ResourceEngine {
                 .set(ApiResponse::setStatus, 500)
                 .build();
     }
+
+    /**
+     * Execute a decision class with the given resource and request.
+     *
+     * @param resource Resource class for executing
+     * @param request  A HTTP request
+     * @return API response
+     */
     public ApiResponse run(Resource resource, HttpRequest request) {
         RestContext context = new RestContext(resource, request);
-
         return runDecisionGraph(context);
     }
 
@@ -55,25 +75,26 @@ public class ResourceEngine {
 
     private Function<RestContext, ?> IF_MATCH_STAR_FUNC = context -> Objects.equals("*", context.getRequest().getHeaders().get("if-match"));
 
-    public Date genLastModified(RestContext context) {
-        return null;
-    }
-
-    public Node<?> createDefaultGraph() {
+    /**
+     * Create a default decision graph
+     *
+     * @return A root node of the constructed decision graph.
+     */
+    protected Node<?> createDefaultGraph() {
         Node<?> handleSeeOther  = handler(HANDLE_SEE_OTHER, 303, null);
         Node<?> handleOK        = handler(HANDLE_OK, 200, "ok");
         Node handleNoContent = handler(HANDLE_NO_CONTENT, 204, null);
         Node handleMultipleRepresentations = handler(HANDLE_MULTIPLE_REPRESENTATIONS, 300, null);
         Node handleAccepted  = handler(HANDLE_ACCEPTED , 202, null);
-        Node isMultipleRepresentations = decision(IS_MULTIPLE_REPRESENTATIONS,
+        Node isMultipleRepresentations = decision(MULTIPLE_REPRESENTATIONS,
             handleMultipleRepresentations, handleOK);
-        Node isRespondWithEntity = decision(IS_RESPOND_WITH_ENTITY,
+        Node isRespondWithEntity = decision(RESPOND_WITH_ENTITY,
             isMultipleRepresentations, handleNoContent);
         Node handleCreated   = handler(HANDLE_CREATED, 201, null);
-        Node isNew           = decision(IS_NEW, handleCreated, isRespondWithEntity);
-        Node doesPostRedirect  = decision(DOES_POST_REDIRECT, handleSeeOther, isNew);
-        Node isPostEnacted   = decision(IS_POST_ENACTED, doesPostRedirect, handleAccepted);
-        Node isPutEnacted    = decision(IS_PUT_ENACTED, isNew, handleAccepted);
+        Node isNew           = decision(NEW, handleCreated, isRespondWithEntity);
+        Node doesPostRedirect  = decision(POST_REDIRECT, handleSeeOther, isNew);
+        Node isPostEnacted   = decision(POST_ENACTED, doesPostRedirect, handleAccepted);
+        Node isPutEnacted    = decision(PUT_ENACTED, isNew, handleAccepted);
         Node handleNotFound  = handler(HANDLE_NOT_FOUND, 404, "Resource not found");
         Node handleGone      = handler(HANDLE_GONE, 410, "Resource is gone");
         Node post            = action(POST, isPostEnacted);
@@ -82,20 +103,20 @@ public class ResourceEngine {
         Node handleMovedPermanently = handler(HANDLE_MOVED_PERMANENTLY, 301, null);
         Node handleMovedTemporarily = handler(HANDLE_MOVED_TEMPORARILY, 307, null);
         Node canPostToGone   = decision(CAN_POST_TO_GONE, post, handleGone);
-        Node isPostToGone       = decision(IS_POST_TO_GONE, canPostToGone, handleGone);
-        Node isMovedTemporarily = decision(IS_MOVED_TEMPORARILY, handleMovedTemporarily, isPostToGone);
-        Node isMovedPermanently = decision(IS_MOVED_PERMANENTLY, handleMovedPermanently, isMovedTemporarily);
-        Node didExist         = decision(DID_EXIST, isMovedPermanently, postToMissing);
+        Node isPostToGone       = decision(POST_TO_GONE, canPostToGone, handleGone);
+        Node isMovedTemporarily = decision(MOVED_TEMPORARILY, handleMovedTemporarily, isPostToGone);
+        Node isMovedPermanently = decision(MOVED_PERMANENTLY, handleMovedPermanently, isMovedTemporarily);
+        Node didExist         = decision(EXISTED, isMovedPermanently, postToMissing);
         Node handleConflict  = handler(HANDLE_CONFLICT, 409, "Conflict.");
-        Node isPatchEnacted  = decision(IS_PATCH_ENACTED, isRespondWithEntity, handleAccepted);
+        Node isPatchEnacted  = decision(PATCH_ENACTED, isRespondWithEntity, handleAccepted);
         Node patch           = action(PATCH, isPatchEnacted);
         Node put             = action(PUT, isPutEnacted);
-        Node isMethodPost      = decision(IS_METHOD_POST, createIsMethod("POST"), post, put);
-        Node doesConflict        = decision(DOES_CONFLICT, handleConflict, isMethodPost);
+        Node isMethodPost      = decision(METHOD_POST, createIsMethod("POST"), post, put);
+        Node doesConflict        = decision(CONFLICT, handleConflict, isMethodPost);
         Node handleNotImplemented = handler(HANDLE_NOT_IMPLEMENTED, 501, "Not implemented.");
         Node canPutToMissing = decision(CAN_PUT_TO_MISSING, doesConflict, handleNotImplemented);
-        Node doesPutToDifferentUrl = decision(DOES_PUT_TO_DIFFERENT_URL, handleMovedPermanently, canPutToMissing);
-        Node isMethodPut       = decision(IS_METHOD_PUT, createIsMethod("PUT"), doesPutToDifferentUrl, didExist);
+        Node doesPutToDifferentUrl = decision(PUT_TO_DIFFERENT_URL, handleMovedPermanently, canPutToMissing);
+        Node isMethodPut       = decision(METHOD_PUT, createIsMethod("PUT"), doesPutToDifferentUrl, didExist);
         Node handlePreconditionFailed = handler(HANDLE_PRECONDITION_FAILED, 412, "Precondition failed.");
         Node doesIfMatchStarExistForMissing = decision(DOES_IF_MATCH_STAR_EXIST_FOR_MISSING,
             IF_MATCH_STAR_FUNC,
@@ -114,22 +135,18 @@ public class ResourceEngine {
             createIsMethod("POST"),
             doesConflict,
             putToExisting);
-        Node isDeleteEnacted  = decision(IS_DELETE_ENACTED, isRespondWithEntity, handleAccepted);
+        Node isDeleteEnacted  = decision(DELETE_ENACTED, isRespondWithEntity, handleAccepted);
         Node delete           = action(DELETE, isDeleteEnacted);
         Node methodPatch      = decision(METHOD_PATCH,
             createIsMethod("PATCH"), patch, postToExisting);
         Node methodDelete     = decision(METHOD_DELETE,
             createIsMethod("DELETE"), delete, methodPatch);
         Node modifiedSince    = decision(MODIFIED_SINCE,
-            context -> {
-                return null;
-            },
+            context -> null,
             methodDelete,
             handleNotModified);
         Node ifModifiedSinceValidDate = decision(IF_MODIFIED_SINCE_VALID_DATE,
-            context -> {
-                return null;
-            },
+            context -> null,
             modifiedSince,
             methodDelete);
         Node ifModifiedSinceExists = decision(IF_MODIFIED_SINCE_EXISTS,
@@ -137,17 +154,15 @@ public class ResourceEngine {
             ifModifiedSinceValidDate,
             methodDelete);
 
-        Node isEtagMatchesForIfNone = decision(ETAG_MATCHES_FOR_IF_NONE,
-            context -> {
-                return null;
-            },
+        Node etagMatchesForIfNone = decision(ETAG_MATCHES_FOR_IF_NONE,
+            context -> null,
             ifNoneMatch,
             ifModifiedSinceExists);
 
         Node ifNoneMatchStar = decision(IF_NONE_MATCH_STAR,
             context -> Objects.equals("*", context.getRequest().getHeaders().get("if-none-match")),
             ifNoneMatch,
-            ifModifiedSinceExists);
+            etagMatchesForIfNone);
 
         Node ifNoneMatchExists = decision(IF_NONE_MATCH_EXISTS,
             context -> context.getRequest().getHeaders().containsKey("if-none-match"),
@@ -155,9 +170,7 @@ public class ResourceEngine {
             ifModifiedSinceExists);
 
         Node unmodifiedSince = decision(UNMODIFIED_SINCE,
-            context -> {
-                return null;
-            },
+            context -> null,
             handlePreconditionFailed,
             ifNoneMatchExists);
 
@@ -189,7 +202,7 @@ public class ResourceEngine {
         Node handleUnprocessableEntity = handler(HANDLE_UNPROCESSABLE_ENTITY, 422, "Unprocessable entity.");
         Node processable = decision(PROCESSABLE, exists, handleUnprocessableEntity);
         Node handleNotAcceptable = handler(HANDLE_NOT_ACCEPTABLE, 406, "No acceptable resource available.");
-        Node isEncodingAvailable = decision(IS_ENCODING_AVAILABLE,
+        Node isEncodingAvailable = decision(ENCODING_AVAILABLE,
             context -> null,
             processable, handleNotAcceptable);
 
@@ -197,7 +210,7 @@ public class ResourceEngine {
             context -> context.getRequest().getHeaders().containsKey("accept-encoding"),
             isEncodingAvailable, processable);
 
-        Node isCharsetAvailable = decision(IS_CHARSET_AVAILABLE,
+        Node isCharsetAvailable = decision(CHARSET_AVAILABLE,
             context -> null,
             acceptEncodingExists,
             handleNotAcceptable);
@@ -233,9 +246,9 @@ public class ResourceEngine {
         Node knownContentType = decision(KNOWN_CONTENT_TYPE, validEntityLength, handleUnsupportedMediaType);
         Node validContentHeader = decision(VALID_CONTENT_HEADER, knownContentType, handleNotImplemented);
         Node handleForbidden = handler(HANDLE_FORBIDDEN, 403, "Forbidden.");
-        Node isAllowed = decision(IS_ALLOWED, validContentHeader, handleForbidden);
+        Node isAllowed = decision(ALLOWED, validContentHeader, handleForbidden);
         Node handleUnauthorized = handler(HANDLE_UNAUTHORIZED, 401, "Not Authorized.");
-        Node isAuthorized = decision(IS_AUTHORIZED, isAllowed, handleUnauthorized);
+        Node isAuthorized = decision(AUTHORIZED, isAllowed, handleUnauthorized);
         Node handleMalformed = handler(HANDLE_MALFORMED, 400, "Bad request.");
         Node malformed = decision(MALFORMED, handleMalformed, isAuthorized);
 
