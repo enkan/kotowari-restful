@@ -26,6 +26,10 @@ public class Problem implements Serializable{
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
     private List<Violation> violations;
 
+    private Problem() {
+
+    }
+
     public Problem(URI type, String title, int status, String detail, String instance) {
         this.type = Optional.ofNullable(type).orElse(DEFAULT_TYPE);
         this.title = title;
@@ -44,6 +48,13 @@ public class Problem implements Serializable{
 
     public static Problem fromException(Exception e) {
         return new Problem(null, "Internal Server Error", 500, e.getMessage(), "");
+    }
+
+    public static Problem valueOf(int status) {
+        Problem problem = new Problem();
+        problem.type = DEFAULT_TYPE;
+        problem.status = status;
+        return problem;
     }
 
     public static class Violation<T> implements Serializable {

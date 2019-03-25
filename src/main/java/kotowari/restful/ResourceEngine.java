@@ -25,6 +25,7 @@ import static kotowari.restful.decision.DecisionFactory.*;
  */
 public class ResourceEngine {
     private static final Logger LOG = LoggerFactory.getLogger(ResourceEngine.class);
+    private boolean printStackTrace = false;
 
     /**
      * Execute a decision graph with the given context.
@@ -47,8 +48,7 @@ public class ResourceEngine {
             LOG.error("Error occurs at handling resource", e);
             return builder(new ApiResponse())
                     .set(ApiResponse::setStatus, 500)
-                    // TODO Add a flag to stop output detail.
-                    .set(ApiResponse::setBody, Problem.fromException(e))
+                    .set(ApiResponse::setBody, printStackTrace ? Problem.fromException(e) : null)
                     .build();
         }
         return builder(new ApiResponse())
@@ -203,7 +203,7 @@ public class ResourceEngine {
         Node processable = decision(PROCESSABLE, exists, handleUnprocessableEntity);
         Node handleNotAcceptable = handler(HANDLE_NOT_ACCEPTABLE, 406, "No acceptable resource available.");
         Node isEncodingAvailable = decision(ENCODING_AVAILABLE,
-            context -> null,
+            context -> true,
             processable, handleNotAcceptable);
 
         Node acceptEncodingExists = decision(ACCEPT_ENCODING_EXISTS,
@@ -211,7 +211,7 @@ public class ResourceEngine {
             isEncodingAvailable, processable);
 
         Node isCharsetAvailable = decision(CHARSET_AVAILABLE,
-            context -> null,
+            context -> true,
             acceptEncodingExists,
             handleNotAcceptable);
 
@@ -219,17 +219,17 @@ public class ResourceEngine {
             context -> context.getRequest().getHeaders().containsKey("accept-charset"),
             isCharsetAvailable, acceptEncodingExists);
         Node languageAvailable = decision(LANGUAGE_AVAILABLE,
-            context -> null,
+            context -> true,
             acceptCharsetExists,
             handleNotAcceptable);
         Node acceptLanguageExists = decision(ACCEPT_LANGUAGE_EXISTS,
-            context -> context.getRequest().getHeaders().containsKey("accept-charset"),
+            context -> context.getRequest().getHeaders().containsKey("accept-language"),
             languageAvailable, acceptCharsetExists);
         Node mediaTypeAvailable = decision(MEDIA_TYPE_AVAILABLE,
-            context -> null,
+            context -> true,
             acceptLanguageExists, handleNotAcceptable);
         Node acceptExists = decision(ACCEPT_EXISTS,
-            context -> null,
+            context -> true,
             mediaTypeAvailable, acceptLanguageExists);
 
         Node handleOptions = handler(HANDLE_OPTIONS, 200, null);
@@ -265,5 +265,9 @@ public class ResourceEngine {
         Node serviceAvailable = decision(SERVICE_AVAILABLE, knownMethod, handleServiceNotAvailable);
 
         return action(INITIALIZE_CONTEXT, serviceAvailable);
+    }
+
+    public void setPrintStackTrace(boolean printStackTrace) {
+        this.printStackTrace = printStackTrace;
     }
 }

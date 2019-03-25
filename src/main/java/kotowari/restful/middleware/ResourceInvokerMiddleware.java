@@ -33,8 +33,10 @@ public class ResourceInvokerMiddleware<RES> implements Middleware<HttpRequest, R
 
     private final ComponentInjector componentInjector;
     private final ResourceEngine engine;
+
     private List<ParameterInjector<?>> parameterInjectors;
     private Resource baseResource;
+    private boolean outputErrorReason = false;
 
     @Inject
     private BeansConverter beansConverter;
@@ -52,6 +54,10 @@ public class ResourceInvokerMiddleware<RES> implements Middleware<HttpRequest, R
         if (baseResource == null) {
              baseResource = new DefaultResource();
         }
+        if (outputErrorReason) {
+            engine.setPrintStackTrace(true);
+        }
+
     }
 
     private Object inject(Object controller) {
@@ -101,5 +107,9 @@ public class ResourceInvokerMiddleware<RES> implements Middleware<HttpRequest, R
      */
     public void setDefaultResource(Resource baseResource) {
         this.baseResource = baseResource;
+    }
+
+    public void setOutputErrorReason(boolean outputErrorReason) {
+        this.outputErrorReason = outputErrorReason;
     }
 }
