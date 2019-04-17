@@ -31,7 +31,9 @@ public class Handler implements Node<ApiResponse> {
         Function<RestContext, ?> ftest = context.getResourceFunction(point);
         if (ftest != null) {
             Object fres = ftest.apply(context);
-            if (fres == null) {
+            if (fres instanceof ApiResponse) {
+                return (ApiResponse) fres;
+            } else if (fres == null) {
                 message = null;
             } else if (fres instanceof String) {
                 message = new SimpleMessage((String) fres);

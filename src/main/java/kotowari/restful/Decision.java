@@ -11,9 +11,16 @@ import java.lang.annotation.*;
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
 public @interface Decision {
-    /** A decision point*/
+    /**
+     * A decision point.
+     *
+     * @return a decision point.
+     */
     DecisionPoint value();
 
-    /** A target method(s) */
+    /** A target method(s).
+     *
+     * @return a target method(s)
+     */
     String[] method() default {};
 }
