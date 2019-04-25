@@ -12,8 +12,8 @@ import java.util.function.Function;
 public class Handler implements Node<ApiResponse> {
     private static final Logger LOG = LoggerFactory.getLogger("kotowari.restful.decision");
 
-    private DecisionPoint point;
-    private int statusCode;
+    private final DecisionPoint point;
+    private final int statusCode;
     private Object message;
 
     public Handler(DecisionPoint point, int statusCode, String message) {

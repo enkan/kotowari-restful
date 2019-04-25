@@ -10,10 +10,10 @@ import java.util.function.Function;
 public class Decision implements Node<Node<?>> {
     private static final Logger LOG = LoggerFactory.getLogger("kotowari.restful.decision");
 
-    private DecisionPoint point;
-    private Function<RestContext, ?> test;
-    private Node<?> thenNode;
-    private Node<?> elseNode;
+    private final DecisionPoint point;
+    private final Function<RestContext, ?> test;
+    private final Node<?> thenNode;
+    private final Node<?> elseNode;
 
     public Decision(DecisionPoint name,
                     Function<RestContext, ?> test,
@@ -26,7 +26,7 @@ public class Decision implements Node<Node<?>> {
     }
 
     public Node<?> execute(RestContext context) {
-        LOG.info("{}", point.name());
+        LOG.debug("{}", point.name());
         Function<RestContext, ?> ftest = context.getResourceFunction(point);
         if (ftest == null) {
             ftest = test;

@@ -19,8 +19,8 @@ import static kotowari.restful.DecisionPoint.*;
  * @author kawasima
  */
 public class DefaultResource implements Resource {
-    private static Function<RestContext, ?> TRUE = (context) -> true;
-    private static Function<RestContext, ?> FALSE = (context) -> false;
+    private static final Function<RestContext, ?> TRUE = (context) -> true;
+    private static final Function<RestContext, ?> FALSE = (context) -> false;
     private Function<RestContext, ?> testRequestMethod(String... methods) {
         Set<String> methodSet = Arrays.stream(methods)
                 .map(m -> m.toUpperCase(Locale.US))
@@ -32,7 +32,7 @@ public class DefaultResource implements Resource {
         };
     }
 
-    private Map<DecisionPoint, Function<RestContext, ?>> defaultFunctions = Map.ofEntries(
+    private final Map<DecisionPoint, Function<RestContext, ?>> defaultFunctions = Map.ofEntries(
             entry(INITIALIZE_CONTEXT,     context -> true),
             entry(SERVICE_AVAILABLE,      TRUE),
             entry(KNOWN_METHOD,           testRequestMethod("GET", "HEAD", "OPTIONS", "POST", "PUT", "DELETE", "PATCH")),

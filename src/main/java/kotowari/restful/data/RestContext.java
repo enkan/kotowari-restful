@@ -57,6 +57,7 @@ public class RestContext {
         values.put(value.getClass(), value);
     }
 
+    @SuppressWarnings("unchecked")
     public <K> Optional<K> getValue(Class<K> key) {
         K value = (K) values.get(key);
         return value == null ? Optional.empty() : Optional.of(value);

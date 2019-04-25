@@ -73,7 +73,7 @@ public class ResourceEngine {
         return context -> methodSet.contains(context.getRequest().getRequestMethod().toUpperCase(Locale.US));
     }
 
-    private Function<RestContext, ?> IF_MATCH_STAR_FUNC = context -> Objects.equals("*", context.getRequest().getHeaders().get("if-match"));
+    private final Function<RestContext, ?> IF_MATCH_STAR_FUNC = context -> Objects.equals("*", context.getRequest().getHeaders().get("if-match"));
 
     /**
      * Create a default decision graph

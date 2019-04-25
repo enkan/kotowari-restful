@@ -9,7 +9,7 @@
     </parent>
 
     <artifactId>kotowari-restful</artifactId>
-    <version>0.2.0</version>
+    <version>0.2.1-SNAPSHOT</version>
     <packaging>jar</packaging>
     <name>kotowari-restful</name>
     <description>Kotowari-Restful is a RESTful API specific framework.</description>

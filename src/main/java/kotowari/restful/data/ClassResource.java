@@ -133,8 +133,8 @@ public class ClassResource implements Resource {
     }
 
     private static class MethodMeta {
-        Method method;
-        Parameter[] parameters;
+        final Method method;
+        final Parameter[] parameters;
 
         MethodMeta(Method method) {
             this.method = method;

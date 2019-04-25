@@ -28,7 +28,7 @@ public class Problem implements Serializable{
     private List<Violation> violations;
 
     private Problem() {
-
+        violations = new ArrayList<>();
     }
 
     public Problem(URI type, String title, int status, String detail, URI instance) {
@@ -78,8 +78,8 @@ public class Problem implements Serializable{
     }
 
     public static class Violation<T> implements Serializable {
-        private String field;
-        private String message;
+        private final String field;
+        private final String message;
 
         public Violation(ConstraintViolation<T> constraintViolation) {
             this.field = constraintViolation.getPropertyPath().toString();

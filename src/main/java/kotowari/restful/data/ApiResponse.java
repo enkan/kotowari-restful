@@ -5,8 +5,6 @@ import enkan.data.HasBody;
 import enkan.data.HasHeaders;
 import enkan.data.HasStatus;
 
-import java.util.Objects;
-
 /**
  * The response object representing for the result of API.
  *
@@ -57,7 +55,7 @@ public class ApiResponse implements HasHeaders, HasStatus, HasBody {
         return "ApiResponse{" +
                 "status=" + status +
                 ", headers=" + headers +
-                ", body=" + Objects.toString(body) +
+                ", body=" + body +
                 '}';
     }
 }
