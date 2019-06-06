@@ -9,7 +9,7 @@
     </parent>
 
     <artifactId>kotowari-restful</artifactId>
-    <version>0.2.1</version>
+    <version>0.2.2-SNAPSHOT</version>
     <packaging>jar</packaging>
     <name>kotowari-restful</name>
     <description>Kotowari-Restful is a RESTful API specific framework.</description>
@@ -73,11 +73,6 @@
             <artifactId>kotowari</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-simple</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
             <groupId>org.hibernate.validator</groupId>
             <artifactId>hibernate-validator</artifactId>
         </dependency>
@@ -98,6 +93,12 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <groupId>net.unit8.enkan</groupId>
+            <artifactId>enkan-component-jackson</artifactId>
+            <version>${enkan.version}</version>
+        </dependency>
+
+        <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-api</artifactId>
             <scope>test</scope>
@@ -107,57 +108,106 @@
             <artifactId>assertj-core</artifactId>
             <scope>test</scope>
         </dependency>
-        <dependency>
-            <groupId>net.unit8.enkan</groupId>
-            <artifactId>enkan-component-jackson</artifactId>
-            <version>${enkan.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>net.unit8.enkan</groupId>
-            <artifactId>enkan-component-HikariCP</artifactId>
-            <version>${enkan.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>net.unit8.enkan</groupId>
-            <artifactId>enkan-component-flyway</artifactId>
-            <version>${enkan.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.h2database</groupId>
-            <artifactId>h2</artifactId>
-            <version>1.4.199</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>net.unit8.enkan</groupId>
-            <artifactId>enkan-repl-pseudo</artifactId>
-            <version>${enkan.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>net.unit8.enkan</groupId>
-            <artifactId>enkan-component-undertow</artifactId>
-            <version>${enkan.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>net.unit8.enkan</groupId>
-            <artifactId>kotowari-jpa</artifactId>
-            <version>${enkan.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>net.unit8.enkan</groupId>
-            <artifactId>enkan-component-eclipselink</artifactId>
-            <version>${enkan.version}</version>
-            <scope>test</scope>
-        </dependency>
     </dependencies>
 
     <profiles>
+        <profile>
+            <id>dev</id>
+            <build>
+                <resources>
+                    <resource>
+                        <directory>src/main/resources</directory>
+                    </resource>
+                    <resource>
+                        <directory>src/dev/resources</directory>
+                    </resource>
+                </resources>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>build-helper-maven-plugin</artifactId>
+                        <version>3.0.0</version>
+                        <executions>
+                            <execution>
+                                <id>add-dev-source</id>
+                                <phase>generate-sources</phase>
+                                <goals>
+                                    <goal>add-source</goal>
+                                </goals>
+                                <configuration>
+                                    <sources>
+                                        <source>src/dev/java</source>
+                                    </sources>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+            <dependencies>
+                <dependency>
+                    <groupId>net.unit8.enkan</groupId>
+                    <artifactId>enkan-devel</artifactId>
+                </dependency>
+                <dependency>
+                    <groupId>net.unit8.enkan</groupId>
+                    <artifactId>enkan-repl-pseudo</artifactId>
+                </dependency>
+
+                <dependency>
+                    <groupId>net.unit8.enkan</groupId>
+                    <artifactId>enkan-repl-jshell</artifactId>
+                </dependency>
+
+                <dependency>
+                    <groupId>net.unit8.enkan</groupId>
+                    <artifactId>enkan-component-flyway</artifactId>
+                    <version>${enkan.version}</version>
+                </dependency>
+                <dependency>
+                    <groupId>net.unit8.enkan</groupId>
+                    <artifactId>enkan-component-jackson</artifactId>
+                    <version>${enkan.version}</version>
+                </dependency>
+                <dependency>
+                    <groupId>net.unit8.enkan</groupId>
+                    <artifactId>enkan-component-HikariCP</artifactId>
+                    <version>${enkan.version}</version>
+                </dependency>
+                <dependency>
+                    <groupId>net.unit8.enkan</groupId>
+                    <artifactId>enkan-component-undertow</artifactId>
+                    <version>${enkan.version}</version>
+                </dependency>
+                <dependency>
+                    <groupId>net.unit8.enkan</groupId>
+                    <artifactId>kotowari-jpa</artifactId>
+                    <version>${enkan.version}</version>
+                </dependency>
+                <dependency>
+                    <groupId>net.unit8.enkan</groupId>
+                    <artifactId>enkan-component-eclipselink</artifactId>
+                    <version>${enkan.version}</version>
+                </dependency>
+
+                <dependency>
+                    <groupId>org.jsr107.ri</groupId>
+                    <artifactId>cache-ri-impl</artifactId>
+                    <version>1.0.0</version>
+                </dependency>
+                <dependency>
+                    <groupId>com.h2database</groupId>
+                    <artifactId>h2</artifactId>
+                    <version>1.4.199</version>
+                </dependency>
+                <dependency>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-simple</artifactId>
+                    <version>1.7.26</version>
+                </dependency>
+            </dependencies>
+        </profile>
+
         <profile>
             <id>release</id>
             <build>

@@ -18,7 +18,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import static enkan.util.ReflectionUtils.*;
+import static enkan.util.ReflectionUtils.tryReflection;
 
 public class ClassResource implements Resource {
     private static final ParameterInjector<?> BODY_SERIALIZABLE_INJECTOR = new BodySerializableInjector<>();
@@ -53,8 +53,11 @@ public class ClassResource implements Resource {
                 }else if (type.isAssignableFrom(deserializedBody.getClass())) {
                     arguments[parameterIndex] = BODY_SERIALIZABLE_INJECTOR.getInjectObject(req);
                 } else {
-                    // TODO must return 400 Malformed Request
-                    arguments[parameterIndex] = beansConverter.createFrom(deserializedBody, type);
+                    try {
+                        arguments[parameterIndex] = beansConverter.createFrom(deserializedBody, type);
+                    } catch (IllegalArgumentException e) {
+                        arguments[parameterIndex] = null;
+                    }
                 }
             } else {
                 arguments[parameterIndex] = parameterInjector.getInjectObject(req);

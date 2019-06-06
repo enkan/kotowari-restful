@@ -47,4 +47,13 @@ public class Handler implements Node<ApiResponse> {
         response.setBody(context.getMessage().orElse(message));
         return response;
     }
+
+    @Override
+    public String toString() {
+        return "Handler{" +
+                "point=" + point +
+                ", statusCode=" + statusCode +
+                ", message=" + message +
+                '}';
+    }
 }

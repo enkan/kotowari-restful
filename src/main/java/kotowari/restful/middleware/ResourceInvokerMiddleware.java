@@ -87,7 +87,7 @@ public class ResourceInvokerMiddleware<RES> implements Middleware<HttpRequest, R
 
             return (RES) response;
         } else {
-            throw new MisconfigurationException("kotowari.MISSING_IMPLEMENTATION", Routable.class);
+            throw new MisconfigurationException("kotowari_restful.MISSING_IMPLEMENTATION", Routable.class);
         }
     }
 

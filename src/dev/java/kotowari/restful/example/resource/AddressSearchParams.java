@@ -1,6 +1,8 @@
 package kotowari.restful.example.resource;
 
-public class AddressSearchParams {
+import java.io.Serializable;
+
+public class AddressSearchParams implements Serializable {
     private int limit;
     private int offset;
     private String q;

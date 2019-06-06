@@ -1,4 +1,4 @@
-package kotowari.restful.example;
+package kotowari.restful;
 
 import enkan.collection.Headers;
 import enkan.collection.OptionMap;

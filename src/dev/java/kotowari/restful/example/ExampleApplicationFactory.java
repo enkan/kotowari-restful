@@ -14,8 +14,8 @@ import kotowari.inject.ParameterInjector;
 import kotowari.inject.parameter.*;
 import kotowari.middleware.RoutingMiddleware;
 import kotowari.middleware.SerDesMiddleware;
-import kotowari.restful.middleware.ResourceInvokerMiddleware;
 import kotowari.restful.example.resource.AddressesResource;
+import kotowari.restful.middleware.ResourceInvokerMiddleware;
 import kotowari.routing.Routes;
 
 import java.util.List;
