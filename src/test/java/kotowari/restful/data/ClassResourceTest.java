@@ -34,8 +34,7 @@ class ClassResourceTest {
             new PrincipalInjector(),
             new ConversationInjector(),
             new ConversationStateInjector(),
-            new LocaleInjector(),
-            new EntityManagerInjector()
+            new LocaleInjector()
     );
 
     @Test
