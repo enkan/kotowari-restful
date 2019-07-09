@@ -1,5 +1,6 @@
 package kotowari.restful.data;
 
+import enkan.collection.Headers;
 import enkan.data.HttpRequest;
 import kotowari.restful.DecisionPoint;
 
@@ -21,6 +22,7 @@ public class RestContext {
     private final Map<Object, Object> values;
     private Object message;
     private int status;
+    private Headers headers;
 
     public RestContext(Resource resource, HttpRequest request) {
         this.resource = resource;
@@ -50,6 +52,14 @@ public class RestContext {
 
     public void setMessage(Object message) {
         this.message = message;
+    }
+
+    public Headers getHeaders() {
+        return headers;
+    }
+
+    public void setHeaders(Headers headers) {
+        this.headers = headers;
     }
 
     public <V> void putValue(V value) {

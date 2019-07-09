@@ -7,6 +7,7 @@ import kotowari.restful.data.SimpleMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Optional;
 import java.util.function.Function;
 
 public class Handler implements Node<ApiResponse> {
@@ -45,6 +46,9 @@ public class Handler implements Node<ApiResponse> {
         ApiResponse response = new ApiResponse();
         response.setStatus(context.getStatus().orElse(statusCode));
         response.setBody(context.getMessage().orElse(message));
+        Optional.ofNullable(context.getHeaders())
+                .ifPresent(headers -> response.getHeaders().putAll(headers));
+
         return response;
     }
 
