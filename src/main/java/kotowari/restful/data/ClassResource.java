@@ -20,6 +20,11 @@ import java.util.stream.Collectors;
 
 import static enkan.util.ReflectionUtils.tryReflection;
 
+/**
+ * A resource implementation based on a POJO.
+ *
+ * @author kawasima
+ */
 public class ClassResource implements Resource {
     private static final ParameterInjector<?> BODY_SERIALIZABLE_INJECTOR = new BodySerializableInjector<>();
     private static final RestContextInjector REST_CONTEXT_INJECTOR = new RestContextInjector();
@@ -30,6 +35,14 @@ public class ClassResource implements Resource {
     private final Function<RestContext, ?> methodAllowedFunc;
     private final BeansConverter beansConverter;
 
+    /**
+     * Create argument objects by parameter injectors.
+     *
+     * @param context A context for REST
+     * @param meta A metadata of the method
+     * @param parameterInjectors A list of parameter injector
+     * @return An object array for the method arguments
+     */
     protected Object[] createArguments(RestContext context, MethodMeta meta, List<ParameterInjector<?>> parameterInjectors) {
         Object[] arguments = new Object[meta.method.getParameterCount()];
 

@@ -5,11 +5,11 @@
     <parent>
         <groupId>net.unit8.enkan</groupId>
         <artifactId>enkan-parent</artifactId>
-        <version>0.9.0</version>
+        <version>0.10.0</version>
     </parent>
 
     <artifactId>kotowari-restful</artifactId>
-    <version>0.2.3</version>
+    <version>0.2.4</version>
     <packaging>jar</packaging>
     <name>kotowari-restful</name>
     <description>Kotowari-Restful is a RESTful API specific framework.</description>
@@ -63,8 +63,9 @@
 
 
     <properties>
-        <enkan.version>0.9.0</enkan.version>
-        <jackson.version>2.9.9</jackson.version>
+        <enkan.version>0.10.0</enkan.version>
+        <jackson.version>2.9.9.3</jackson.version>
+        <jackson.jaxrs.version>2.9.9</jackson.jaxrs.version>
     </properties>
 
     <dependencies>
@@ -89,7 +90,7 @@
         <dependency>
             <groupId>com.fasterxml.jackson.jaxrs</groupId>
             <artifactId>jackson-jaxrs-json-provider</artifactId>
-            <version>${jackson.version}</version>
+            <version>${jackson.jaxrs.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -113,6 +114,9 @@
     <profiles>
         <profile>
             <id>dev</id>
+            <activation>
+                <activeByDefault>false</activeByDefault>
+            </activation>
             <build>
                 <resources>
                     <resource>
@@ -152,11 +156,13 @@
                 <dependency>
                     <groupId>net.unit8.enkan</groupId>
                     <artifactId>enkan-repl-pseudo</artifactId>
+                    <version>${enkan.version}</version>
                 </dependency>
 
                 <dependency>
                     <groupId>net.unit8.enkan</groupId>
                     <artifactId>enkan-repl-jshell</artifactId>
+                    <version>${enkan.version}</version>
                 </dependency>
 
                 <dependency>
@@ -203,7 +209,6 @@
                 <dependency>
                     <groupId>org.slf4j</groupId>
                     <artifactId>slf4j-simple</artifactId>
-                    <version>1.7.26</version>
                 </dependency>
             </dependencies>
         </profile>

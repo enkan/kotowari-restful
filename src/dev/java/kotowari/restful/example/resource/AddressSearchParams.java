@@ -22,4 +22,12 @@ public class AddressSearchParams implements Serializable {
     public void setOffset(int offset) {
         this.offset = offset;
     }
+
+    public String getQ() {
+        return q;
+    }
+
+    public void setQ(String q) {
+        this.q = q;
+    }
 }

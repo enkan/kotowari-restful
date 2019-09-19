@@ -26,7 +26,7 @@ class ClassResourceTest {
         }
     }
 
-    private List<ParameterInjector<?>> parameterInjectors = List.of(
+    private final List<ParameterInjector<?>> parameterInjectors = List.of(
             new HttpRequestInjector(),
             new ParametersInjector(),
             new SessionInjector(),

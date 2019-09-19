@@ -14,7 +14,7 @@ class ResourceInvokerMiddlewareTest {
     @Test
     void test() {
         ComponentInjector injector = new ComponentInjector(Map.of());
-        final ResourceInvokerMiddleware middleware = new ResourceInvokerMiddleware(injector);
+        final ResourceInvokerMiddleware<Object> middleware = new ResourceInvokerMiddleware<>(injector);
         HttpRequest request = new DefaultHttpRequest();
         assertThatThrownBy(() -> middleware.handle(request, null))
                 .isInstanceOf(MisconfigurationException.class);

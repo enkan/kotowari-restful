@@ -10,16 +10,16 @@ import org.junit.jupiter.api.Test;
 
 import static enkan.util.BeanBuilder.builder;
 
-public class ResourceEngineTest {
-    ResourceEngine resourceEngine;
+class ResourceEngineTest {
+    private ResourceEngine resourceEngine;
 
     @BeforeEach
-    public void setup() {
+    void setup() {
         resourceEngine = new ResourceEngine();
     }
 
     @Test
-    public void http200Ok() {
+    void http200Ok() {
         DefaultResource resource = new DefaultResource();
         HttpRequest request = builder(new DefaultHttpRequest())
                 .set(HttpRequest::setRequestMethod, "GET")
@@ -31,7 +31,7 @@ public class ResourceEngineTest {
     }
 
     @Test
-    public void httpPost() {
+    void httpPost() {
         DefaultResource resource = new DefaultResource();
         HttpRequest request = builder(new DefaultHttpRequest())
                 .set(HttpRequest::setRequestMethod, "POST")

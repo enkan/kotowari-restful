@@ -8,7 +8,6 @@ import java.io.Serializable;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.*;
 
 class BeansValidatorTest {
     private static class TestBean implements Serializable {
@@ -23,6 +22,7 @@ class BeansValidatorTest {
             this.name = name;
         }
     }
+
     @Test
     void validate() {
         BeansValidator validator = new BeansValidator();
