@@ -64,7 +64,7 @@
 
     <properties>
         <enkan.version>0.10.0</enkan.version>
-        <jackson.version>2.9.9.3</jackson.version>
+        <jackson.version>2.13.4.1</jackson.version>
         <jackson.jaxrs.version>2.9.9</jackson.jaxrs.version>
     </properties>
 
