@@ -14,5 +14,6 @@ buildNumber.properties
 # IDEA
 *.iml
 .idea
+.vscode
 
 .attach_pid*

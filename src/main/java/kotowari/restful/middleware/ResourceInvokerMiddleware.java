@@ -15,8 +15,8 @@ import kotowari.restful.data.DefaultResource;
 import kotowari.restful.data.Resource;
 import kotowari.util.ParameterUtils;
 
-import javax.annotation.PostConstruct;
-import javax.inject.Inject;
+import jakarta.annotation.PostConstruct;
+import jakarta.inject.Inject;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -76,7 +76,7 @@ public class ResourceInvokerMiddleware<RES> implements Middleware<HttpRequest, R
      */
     @SuppressWarnings("unchecked")
     @Override
-    public RES handle(HttpRequest request, MiddlewareChain<Void, Void, ?, ?> next) {
+    public <NNREQ, NNRES> RES handle(HttpRequest request, MiddlewareChain<Void, Void, NNREQ, NNRES> next) {
         if (request instanceof Routable) {
             Class<?> resourceClass = ((Routable) request).getControllerClass();
 

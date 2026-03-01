@@ -3,7 +3,7 @@ package kotowari.restful.component;
 import org.hibernate.validator.constraints.Length;
 import org.junit.jupiter.api.Test;
 
-import javax.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolation;
 import java.io.Serializable;
 import java.util.Set;
 

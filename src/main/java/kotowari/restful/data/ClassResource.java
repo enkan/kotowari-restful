@@ -1,7 +1,6 @@
 package kotowari.restful.data;
 
 import enkan.component.BeansConverter;
-import enkan.data.HttpRequest;
 import enkan.system.inject.ComponentInjector;
 import kotowari.data.BodyDeserializable;
 import kotowari.inject.ParameterInjector;
@@ -9,6 +8,7 @@ import kotowari.inject.parameter.BodySerializableInjector;
 import kotowari.restful.Decision;
 import kotowari.restful.DecisionPoint;
 import kotowari.restful.inject.parameter.RestContextInjector;
+import kotowari.restful.exception.MalformedBodyException;
 import kotowari.restful.resource.AllowedMethods;
 
 import java.lang.reflect.Method;
@@ -33,49 +33,18 @@ public class ClassResource implements Resource {
     private final Resource parent;
     private final Object instance;
     private final Function<RestContext, ?> methodAllowedFunc;
-    private final BeansConverter beansConverter;
 
     /**
      * Create argument objects by parameter injectors.
      *
      * @param context A context for REST
      * @param meta A metadata of the method
-     * @param parameterInjectors A list of parameter injector
      * @return An object array for the method arguments
      */
-    protected Object[] createArguments(RestContext context, MethodMeta meta, List<ParameterInjector<?>> parameterInjectors) {
-        Object[] arguments = new Object[meta.method.getParameterCount()];
-
-        int i = 0;
-        final HttpRequest req = context.getRequest();
-        for (Parameter parameter : meta.method.getParameters()) {
-            Class<?> type = parameter.getType();
-            final int parameterIndex = i;
-            ParameterInjector<?> parameterInjector = parameterInjectors.stream()
-                    .filter(injector -> injector.isApplicable(type, req))
-                    .findAny()
-                    .orElse(BODY_SERIALIZABLE_INJECTOR);
-
-            Object deserializedBody = ((BodyDeserializable) req).getDeserializedBody();
-            if (parameterInjector == BODY_SERIALIZABLE_INJECTOR) {
-                if (REST_CONTEXT_INJECTOR.isApplicable(type, context)) {
-                    arguments[parameterIndex] = REST_CONTEXT_INJECTOR.getInjectObject(context, type);
-
-                } else if (deserializedBody == null) {
-                    arguments[parameterIndex] = null;
-                }else if (type.isAssignableFrom(deserializedBody.getClass())) {
-                    arguments[parameterIndex] = BODY_SERIALIZABLE_INJECTOR.getInjectObject(req);
-                } else {
-                    try {
-                        arguments[parameterIndex] = beansConverter.createFrom(deserializedBody, type);
-                    } catch (IllegalArgumentException e) {
-                        arguments[parameterIndex] = null;
-                    }
-                }
-            } else {
-                arguments[parameterIndex] = parameterInjector.getInjectObject(req);
-            }
-            i++;
+    protected Object[] createArguments(RestContext context, MethodMeta meta) {
+        Object[] arguments = new Object[meta.resolvers.length];
+        for (int i = 0; i < meta.resolvers.length; i++) {
+            arguments[i] = meta.resolvers[i].apply(context);
         }
         return arguments;
     }
@@ -97,7 +66,6 @@ public class ClassResource implements Resource {
                          BeansConverter beansConverter) {
         instance = tryReflection(() -> componentInjector.inject(resourceClass.getConstructor().newInstance()));
         this.parent = parent;
-        this.beansConverter = beansConverter;
         Set<String> allowedMethods = parseAllowedMethods(resourceClass);
         methodAllowedFunc = context -> allowedMethods.contains(context.getRequest().getRequestMethod().toUpperCase(Locale.US));
         functions = new HashMap<>();
@@ -117,10 +85,10 @@ public class ClassResource implements Resource {
                 String[] targetMethods = decision.method();
                 if (targetMethods.length > 0) {
                     for(String m : targetMethods) {
-                        httpMethodMap.put(m, new MethodMeta(method));
+                        httpMethodMap.put(m, new MethodMeta(method, parameterInjectors, beansConverter));
                     }
                 } else {
-                    fallbackMethod.set(new MethodMeta(method));
+                    fallbackMethod.set(new MethodMeta(method, parameterInjectors, beansConverter));
                 }
             });
 
@@ -129,7 +97,7 @@ public class ClassResource implements Resource {
                     context.getRequest().getRequestMethod().toUpperCase(Locale.US),
                     fallbackMethod.get());
                 if (meta != null) {
-                    Object[] arguments = createArguments(context, meta, parameterInjectors);
+                    Object[] arguments = createArguments(context, meta);
                     return tryReflection(() -> meta.method.invoke(instance, arguments));
                 } else {
                     return parent.getFunction(point).apply(context);
@@ -148,13 +116,56 @@ public class ClassResource implements Resource {
         return parent.getFunction(point);
     }
 
+    @SuppressWarnings("unchecked")
+    private static Function<RestContext, Object>[] buildResolvers(
+            Parameter[] parameters,
+            List<ParameterInjector<?>> parameterInjectors,
+            BeansConverter beansConverter) {
+        Function<RestContext, Object>[] resolvers = new Function[parameters.length];
+        for (int i = 0; i < parameters.length; i++) {
+            Class<?> type = parameters[i].getType();
+            if (RestContext.class.isAssignableFrom(type)) {
+                resolvers[i] = ctx -> ctx;
+            } else {
+                ParameterInjector<?> injector = parameterInjectors.stream()
+                        .filter(pi -> pi.isApplicable(type, null))
+                        .findAny()
+                        .orElse(null);
+                if (injector != null) {
+                    final ParameterInjector<?> captured = injector;
+                    resolvers[i] = ctx -> captured.getInjectObject(ctx.getRequest());
+                } else {
+                    // context.getValue(type) is dynamic; body deserialization type check is also dynamic
+                    resolvers[i] = ctx -> {
+                        if (REST_CONTEXT_INJECTOR.isApplicable(type, ctx)) {
+                            return REST_CONTEXT_INJECTOR.getInjectObject(ctx, type);
+                        }
+                        Object deserializedBody = ((BodyDeserializable) ctx.getRequest()).getDeserializedBody();
+                        if (deserializedBody == null) {
+                            return null;
+                        } else if (type.isAssignableFrom(deserializedBody.getClass())) {
+                            return BODY_SERIALIZABLE_INJECTOR.getInjectObject(ctx.getRequest());
+                        } else {
+                            try {
+                                return beansConverter.createFrom(deserializedBody, type);
+                            } catch (IllegalArgumentException e) {
+                                throw new MalformedBodyException(type, e);
+                            }
+                        }
+                    };
+                }
+            }
+        }
+        return resolvers;
+    }
+
     private static class MethodMeta {
         final Method method;
-        final Parameter[] parameters;
+        final Function<RestContext, Object>[] resolvers;
 
-        MethodMeta(Method method) {
+        MethodMeta(Method method, List<ParameterInjector<?>> parameterInjectors, BeansConverter beansConverter) {
             this.method = method;
-            parameters = method.getParameters();
+            this.resolvers = buildResolvers(method.getParameters(), parameterInjectors, beansConverter);
         }
     }
 }

@@ -14,13 +14,13 @@ public class V1__CreateAddress extends BaseJavaMigration {
         Connection connection = context.getConnection();
         try(Statement stmt = connection.createStatement()) {
             stmt.execute("CREATE TABLE address(" +
-                    "id IDENTITY NOT NULL," +
+                    "id BIGINT AUTO_INCREMENT NOT NULL PRIMARY KEY," +
                     "country_code VARCHAR(2)," +
                     "zip VARCHAR(20)," +
                     "city VARCHAR(100)," +
                     "street VARCHAR(100)," +
                     "additional VARCHAR(100)," +
-                    "care_of VARCHAR(100)," +
+                    "care_of VARCHAR(100)" +
                     ")");
 
         }

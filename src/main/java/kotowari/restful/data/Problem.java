@@ -2,7 +2,7 @@ package kotowari.restful.data;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 
-import javax.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolation;
 import java.io.Serializable;
 import java.net.URI;
 import java.util.*;
@@ -16,65 +16,55 @@ import java.util.stream.Collectors;
  */
 public class Problem implements Serializable{
     private static final URI DEFAULT_TYPE = URI.create("about:blank");
-    private URI type;
-    private String title;
-    private int status;
+    private final URI type;
+    private final String title;
+    private final int status;
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    private String detail;
+    private final String detail;
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    private URI instance;
+    private final URI instance;
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
-    private List<Violation> violations;
+    private final List<Violation> violations;
 
-    private Problem() {
-        violations = new ArrayList<>();
-    }
-
-    public Problem(URI type, String title, int status, String detail, URI instance) {
+    private Problem(URI type, String title, int status, String detail, URI instance, List<Violation> violations) {
         this.type = Optional.ofNullable(type).orElse(DEFAULT_TYPE);
         this.title = title;
         this.status = status;
         this.detail = detail;
         this.instance = instance;
+        this.violations = violations != null ? violations : List.of();
+    }
+
+    public Problem(URI type, String title, int status, String detail, URI instance) {
+        this(type, title, status, detail, instance, null);
     }
 
     public static <T> Problem fromViolations(Set<ConstraintViolation<T>> violations) {
-        Problem problem = new Problem(DEFAULT_TYPE, "Malformed", 400, null, null);
-        problem.violations = violations.stream()
+        List<Violation> violationList = violations.stream()
                 .map((Function<ConstraintViolation<T>, Violation>) Violation::new)
                 .collect(Collectors.toList());
-        return problem;
+        return new Problem(DEFAULT_TYPE, "Malformed", 400, null, null, violationList);
     }
 
     public static Problem fromException(Exception e) {
-        return new Problem(DEFAULT_TYPE, "Internal Server Error", 500, e.getMessage(), null);
+        return new Problem(DEFAULT_TYPE, "Internal Server Error", 500, null, null);
     }
 
     public static Problem valueOf(int status) {
-        Problem problem = new Problem();
-        problem.type = DEFAULT_TYPE;
-        problem.title = DEFAULT_TITLES.getOrDefault(status, "Problem occurs");
-        problem.status = status;
-        return problem;
+        return new Problem(DEFAULT_TYPE, DEFAULT_TITLES.getOrDefault(status, "Problem occurs"), status, null, null);
     }
 
     public static Problem valueOf(int status, String detail) {
-        Problem problem = Problem.valueOf(status);
-        problem.detail = detail;
-        return problem;
+        return new Problem(DEFAULT_TYPE, DEFAULT_TITLES.getOrDefault(status, "Problem occurs"), status, detail, null);
     }
 
     public static Problem valueOf(int status, URI instance) {
-        Problem problem = Problem.valueOf(status);
-        problem.instance = instance;
-        return problem;
+        return new Problem(DEFAULT_TYPE, DEFAULT_TITLES.getOrDefault(status, "Problem occurs"), status, null, instance);
     }
 
     public static Problem valueOf(int status, String detail, URI instance) {
-        Problem problem = Problem.valueOf(status, detail);
-        problem.instance = instance;
-        return problem;
+        return new Problem(DEFAULT_TYPE, DEFAULT_TITLES.getOrDefault(status, "Problem occurs"), status, detail, instance);
     }
 
     public static class Violation<T> implements Serializable {
@@ -104,40 +94,20 @@ public class Problem implements Serializable{
         return type;
     }
 
-    public void setType(URI type) {
-        this.type = type;
-    }
-
     public String getTitle() {
         return title;
-    }
-
-    public void setTitle(String title) {
-        this.title = title;
     }
 
     public int getStatus() {
         return status;
     }
 
-    public void setStatus(int status) {
-        this.status = status;
-    }
-
     public String getDetail() {
         return detail;
     }
 
-    public void setDetail(String detail) {
-        this.detail = detail;
-    }
-
     public URI getInstance() {
         return instance;
-    }
-
-    public void setInstance(URI instance) {
-        this.instance = instance;
     }
 
     public List<Violation> getViolations() {

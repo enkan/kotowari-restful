@@ -19,6 +19,7 @@ import kotowari.restful.middleware.ResourceInvokerMiddleware;
 import kotowari.routing.Routes;
 
 import java.util.List;
+import java.util.Set;
 
 import static enkan.util.BeanBuilder.builder;
 
@@ -42,7 +43,9 @@ public class ExampleApplicationFactory implements ApplicationFactory {
         app.use(new ParamsMiddleware<>());
         app.use(new MultipartParamsMiddleware<>());
         app.use(new NestedParamsMiddleware<>());
-        app.use(new ContentNegotiationMiddleware<>());
+        app.use(builder(new ContentNegotiationMiddleware<>())
+                .set(ContentNegotiationMiddleware::setAllowedTypes, Set.of("application/json"))
+                .build());
         app.use(new RoutingMiddleware<>(routes));
         app.use(new EntityManagerMiddleware<>());
         app.use(new NonJtaTransactionMiddleware<>());

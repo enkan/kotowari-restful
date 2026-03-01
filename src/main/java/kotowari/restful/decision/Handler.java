@@ -15,20 +15,18 @@ public class Handler implements Node<ApiResponse> {
 
     private final DecisionPoint point;
     private final int statusCode;
-    private Object message;
+    private final Object defaultMessage;
 
     public Handler(DecisionPoint point, int statusCode, String message) {
         this.point = point;
         this.statusCode = statusCode;
-        if (message != null) {
-            this.message = new SimpleMessage(message);
-        }
-
+        this.defaultMessage = message != null ? new SimpleMessage(message) : null;
     }
 
     @Override
     public ApiResponse execute(RestContext context) {
         LOG.info("{}", point.name());
+        Object message = defaultMessage;
         Function<RestContext, ?> ftest = context.getResourceFunction(point);
         if (ftest != null) {
             Object fres = ftest.apply(context);
@@ -57,7 +55,7 @@ public class Handler implements Node<ApiResponse> {
         return "Handler{" +
                 "point=" + point +
                 ", statusCode=" + statusCode +
-                ", message=" + message +
+                ", defaultMessage=" + defaultMessage +
                 '}';
     }
 }
