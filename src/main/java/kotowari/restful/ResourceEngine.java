@@ -57,10 +57,11 @@ public class ResourceEngine {
                     .build();
         } catch(Exception e) {
             LOG.error("Error occurs at handling resource", e);
-            return builder(new ApiResponse())
-                    .set(ApiResponse::setStatus, 500)
-                    .set(ApiResponse::setBody, printStackTrace ? Problem.fromException(e) : null)
-                    .build();
+            context.setException(e);
+            if (printStackTrace) {
+                context.setMessage(Problem.fromException(e));
+            }
+            return handler(HANDLE_EXCEPTION, 500, null).execute(context);
         }
         return builder(new ApiResponse())
                 .set(ApiResponse::setStatus, 500)
@@ -240,7 +241,7 @@ public class ResourceEngine {
             context -> true,
             acceptLanguageExists, handleNotAcceptable);
         Node<?> acceptExists = decision(ACCEPT_EXISTS,
-            context -> true,
+            context -> context.getRequest().getHeaders().containsKey("accept"),
             mediaTypeAvailable, acceptLanguageExists);
 
         Node<?> handleOptions = handler(HANDLE_OPTIONS, 200, null);

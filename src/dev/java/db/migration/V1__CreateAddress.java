@@ -13,8 +13,9 @@ public class V1__CreateAddress extends BaseJavaMigration {
     public void migrate(Context context) throws Exception {
         Connection connection = context.getConnection();
         try(Statement stmt = connection.createStatement()) {
+            stmt.execute("CREATE SEQUENCE address_id_seq START WITH 1 INCREMENT BY 50");
             stmt.execute("CREATE TABLE address(" +
-                    "id BIGINT AUTO_INCREMENT NOT NULL PRIMARY KEY," +
+                    "id BIGINT DEFAULT NEXT VALUE FOR address_id_seq NOT NULL PRIMARY KEY," +
                     "country_code VARCHAR(2)," +
                     "zip VARCHAR(20)," +
                     "city VARCHAR(100)," +

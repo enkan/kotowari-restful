@@ -32,6 +32,7 @@ class BeansValidatorTest {
             testBean.setName("1234");
             final Set<ConstraintViolation<TestBean>> violations = validator.validate(testBean);
             assertThat(violations).isNotEmpty();
+            assertThat(testBean.getName()).isEqualTo("1234");
         } finally {
             validator.lifecycle().stop(validator);
         }

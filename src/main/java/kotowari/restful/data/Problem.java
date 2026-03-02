@@ -6,7 +6,6 @@ import jakarta.validation.ConstraintViolation;
 import java.io.Serializable;
 import java.net.URI;
 import java.util.*;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -15,6 +14,7 @@ import java.util.stream.Collectors;
  * @author kawasima
  */
 public class Problem implements Serializable{
+    private static final long serialVersionUID = 1L;
     private static final URI DEFAULT_TYPE = URI.create("about:blank");
     private final URI type;
     private final String title;
@@ -42,7 +42,7 @@ public class Problem implements Serializable{
 
     public static <T> Problem fromViolations(Set<ConstraintViolation<T>> violations) {
         List<Violation> violationList = violations.stream()
-                .map((Function<ConstraintViolation<T>, Violation>) Violation::new)
+                .map(Violation::new)
                 .collect(Collectors.toList());
         return new Problem(DEFAULT_TYPE, "Malformed", 400, null, null, violationList);
     }
@@ -67,11 +67,12 @@ public class Problem implements Serializable{
         return new Problem(DEFAULT_TYPE, DEFAULT_TITLES.getOrDefault(status, "Problem occurs"), status, detail, instance);
     }
 
-    public static class Violation<T> implements Serializable {
+    public static class Violation implements Serializable {
+        private static final long serialVersionUID = 1L;
         private final String field;
         private final String message;
 
-        public Violation(ConstraintViolation<T> constraintViolation) {
+        public <T> Violation(ConstraintViolation<T> constraintViolation) {
             this.field = constraintViolation.getPropertyPath().toString();
             this.message = constraintViolation.getMessage();
         }

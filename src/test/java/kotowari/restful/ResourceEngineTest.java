@@ -3,7 +3,6 @@ package kotowari.restful;
 import enkan.collection.Headers;
 import enkan.data.DefaultHttpRequest;
 import enkan.data.HttpRequest;
-import kotowari.restful.ResourceEngine;
 import kotowari.restful.data.DefaultResource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

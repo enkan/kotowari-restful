@@ -5,6 +5,7 @@ import kotowari.restful.DecisionPoint;
 import java.util.Arrays;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -52,6 +53,7 @@ public class DefaultResource implements Resource {
             entry(PUT_TO_DIFFERENT_URL,   FALSE),
             entry(MULTIPLE_REPRESENTATIONS, FALSE),
             entry(CONFLICT,               FALSE),
+            entry(IF_MATCH_STAR,          context -> Objects.equals("*", context.getRequest().getHeaders().get("if-match"))),
             entry(CAN_POST_TO_MISSING,    TRUE),
             entry(CAN_PUT_TO_MISSING,     TRUE),
             entry(MOVED_PERMANENTLY,      FALSE),

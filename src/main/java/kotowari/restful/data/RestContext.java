@@ -23,6 +23,7 @@ public class RestContext {
     private Object message;
     private int status;
     private Headers headers;
+    private Throwable exception;
 
     public RestContext(Resource resource, HttpRequest request) {
         this.resource = resource;
@@ -60,6 +61,14 @@ public class RestContext {
 
     public void setHeaders(Headers headers) {
         this.headers = headers;
+    }
+
+    public Throwable getException() {
+        return exception;
+    }
+
+    public void setException(Throwable exception) {
+        this.exception = exception;
     }
 
     public <V> void putValue(V value) {

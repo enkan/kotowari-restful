@@ -95,6 +95,7 @@ The decision graph evaluates each request through a fixed sequence of decision p
 | `HANDLE_OK` | `"ok"` | Response body for 200 |
 | `HANDLE_CREATED` | `null` | Response body for 201 |
 | `HANDLE_NOT_FOUND` | `"Resource not found"` | Response body for 404 |
+| `HANDLE_EXCEPTION` | `null` | Response body for 500; `context.getException()` holds the thrown exception |
 
 ### Per-HTTP-method dispatch
 
@@ -221,8 +222,13 @@ public class AddressesResource {
     }
 
     @Decision(POST)
-    public Address create(Address address, EntityManager em) {
+    public void create(Address address, EntityManager em, RestContext context) {
         em.persist(address);
+        context.putValue(address);  // makes the persisted entity available to HANDLE_CREATED
+    }
+
+    @Decision(HANDLE_CREATED)
+    public Address handleCreated(Address address) {
         return address;
     }
 }

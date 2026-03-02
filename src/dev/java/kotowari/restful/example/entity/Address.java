@@ -3,19 +3,33 @@ package kotowari.restful.example.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.SequenceGenerator;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import java.io.Serializable;
 
 @Entity
 public class Address implements Serializable {
     @Id
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "address_id_gen")
+    @SequenceGenerator(name = "address_id_gen", sequenceName = "address_id_seq", allocationSize = 50)
     private Long id;
     @Column(name = "CARE_OF")
     private String careOf;
+    @NotNull
+    @Size(min = 1, max = 100)
     private String street;
     private String additional;
+    @NotNull
     private String city;
+    @NotNull
+    @Size(min = 3, max = 20)
     private String zip;
+    @NotNull
+    @Size(min = 2, max = 2)
     @Column(name = "COUNTRY_CODE")
     private String countryCode;
 
