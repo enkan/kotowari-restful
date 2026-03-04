@@ -1,7 +1,20 @@
 package kotowari.restful;
 
 /**
- * Decision points.
+ * Every node in the decision graph.
+ *
+ * <p>Divided into four categories:
+ * <ul>
+ *   <li><b>User-customizable decisions</b> — override via {@code @Decision}
+ *       on a resource class (e.g. {@code EXISTS}, {@code MALFORMED}, {@code AUTHORIZED}).</li>
+ *   <li><b>Internal HTTP header decisions</b> — driven by the engine based on
+ *       request headers (e.g. {@code IF_MATCH_EXISTS}, {@code ACCEPT_EXISTS}).</li>
+ *   <li><b>Actions</b> — {@code POST}, {@code PUT}, {@code PATCH}, {@code DELETE},
+ *       {@code INITIALIZE_CONTEXT}.</li>
+ *   <li><b>Handlers</b> — terminal nodes that produce an {@link kotowari.restful.data.ApiResponse}
+ *       with a fixed status code (e.g. {@code HANDLE_OK} → 200, {@code HANDLE_CREATED} → 201,
+ *       {@code HANDLE_EXCEPTION} → 500).</li>
+ * </ul>
  *
  * @author kawasima
  */

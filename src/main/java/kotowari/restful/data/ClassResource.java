@@ -21,7 +21,26 @@ import java.util.stream.Collectors;
 import static enkan.util.ReflectionUtils.tryReflection;
 
 /**
- * A resource implementation based on a POJO.
+ * A {@link Resource} implementation backed by a POJO class annotated with
+ * {@link Decision @Decision}.
+ *
+ * <p>At construction time the class is scanned for {@code @Decision}-annotated methods.
+ * Each method is compiled into a {@link java.util.function.Function Function&lt;RestContext, ?&gt;}
+ * with pre-built argument resolvers ({@link MethodMeta}), so no reflection occurs
+ * per request. Methods may be scoped to specific HTTP methods via
+ * {@link Decision#method() @Decision(method={"POST"})}.
+ *
+ * <p>Argument injection priority per parameter:
+ * <ol>
+ *   <li>{@link RestContext} — injected directly</li>
+ *   <li>Any matching {@link kotowari.inject.ParameterInjector} (e.g. {@code Parameters},
+ *       {@code EntityManager}) — static, determined at construction time</li>
+ *   <li>{@link RestContext#getValue(Class)} — dynamic lookup at invocation time</li>
+ *   <li>Deserialized request body (direct or via {@code BeansConverter}) — dynamic</li>
+ * </ol>
+ *
+ * <p>Instances are cached per resource class by
+ * {@link kotowari.restful.middleware.ResourceInvokerMiddleware}.
  *
  * @author kawasima
  */
@@ -60,6 +79,16 @@ public class ClassResource implements Resource {
         }
     }
 
+    /**
+     * Scans {@code resourceClass} for {@code @Decision}-annotated methods and
+     * pre-compiles argument resolvers.
+     *
+     * @param resourceClass      the POJO resource class to wrap
+     * @param parent             the fallback resource (typically {@link DefaultResource})
+     * @param componentInjector  injector for {@code @Inject} fields on the resource instance
+     * @param parameterInjectors ordered list of parameter injectors
+     * @param beansConverter     converter used to deserialize request bodies
+     */
     public ClassResource(Class<?> resourceClass, Resource parent,
                          ComponentInjector componentInjector,
                          List<ParameterInjector<?>> parameterInjectors,
@@ -139,6 +168,9 @@ public class ClassResource implements Resource {
                     resolvers[i] = ctx -> {
                         if (REST_CONTEXT_INJECTOR.isApplicable(type, ctx)) {
                             return REST_CONTEXT_INJECTOR.getInjectObject(ctx, type);
+                        }
+                        if (!(ctx.getRequest() instanceof BodyDeserializable)) {
+                            return null;
                         }
                         Object deserializedBody = ((BodyDeserializable) ctx.getRequest()).getDeserializedBody();
                         if (deserializedBody == null) {

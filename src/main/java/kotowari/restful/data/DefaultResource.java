@@ -15,7 +15,16 @@ import static java.util.Map.entry;
 import static kotowari.restful.DecisionPoint.*;
 
 /**
- * A default resource.
+ * Provides sensible default functions for all decision points in the graph.
+ *
+ * <p>Used as the fallback parent of {@link ClassResource}: when a user's POJO
+ * does not provide a {@code @Decision} method for a given point, the engine
+ * falls through to these defaults (e.g. {@code EXISTS → true},
+ * {@code MALFORMED → false}, {@code METHOD_ALLOWED → GET/HEAD}).
+ *
+ * <p>Can be subclassed to change application-wide defaults by overriding
+ * {@link #getDefaultFunctions()} and passing the instance to
+ * {@link kotowari.restful.middleware.ResourceInvokerMiddleware#setDefaultResource(Resource)}.
  *
  * @author kawasima
  */

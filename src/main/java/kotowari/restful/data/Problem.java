@@ -9,7 +9,16 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * A representation for problem JSON.
+ * Immutable RFC 9457 "Problem Details for HTTP APIs" representation.
+ *
+ * <p>Instances are created via factory methods:
+ * <ul>
+ *   <li>{@link #valueOf(int)} / {@link #valueOf(int, String)} — from an HTTP status code</li>
+ *   <li>{@link #fromViolations(Set)} — from Jakarta Validation constraint violations (400)</li>
+ *   <li>{@link #fromException(Exception)} — from an unhandled exception (500)</li>
+ * </ul>
+ *
+ * <p>Serialized to JSON by Jackson; fields with {@code null} or empty values are omitted.
  *
  * @author kawasima
  */
@@ -36,10 +45,26 @@ public class Problem implements Serializable{
         this.violations = violations != null ? violations : List.of();
     }
 
+    /**
+     * Creates a Problem with the given RFC 9457 fields (without violations).
+     *
+     * @param type     a URI identifying the problem type, or {@code null} for {@code about:blank}
+     * @param title    a short human-readable summary
+     * @param status   the HTTP status code
+     * @param detail   a human-readable explanation specific to this occurrence, or {@code null}
+     * @param instance a URI identifying the specific occurrence, or {@code null}
+     */
     public Problem(URI type, String title, int status, String detail, URI instance) {
         this(type, title, status, detail, instance, null);
     }
 
+    /**
+     * Creates a 400 (Bad Request) Problem from Jakarta Validation constraint violations.
+     *
+     * @param <T>        the type of the validated bean
+     * @param violations the set of constraint violations
+     * @return a Problem with status 400 and the violations list
+     */
     public static <T> Problem fromViolations(Set<ConstraintViolation<T>> violations) {
         List<Violation> violationList = violations.stream()
                 .map(Violation::new)
@@ -47,14 +72,33 @@ public class Problem implements Serializable{
         return new Problem(DEFAULT_TYPE, "Malformed", 400, null, null, violationList);
     }
 
+    /**
+     * Creates a 500 (Internal Server Error) Problem from an unhandled exception.
+     *
+     * @param e the exception
+     * @return a Problem with status 500
+     */
     public static Problem fromException(Exception e) {
         return new Problem(DEFAULT_TYPE, "Internal Server Error", 500, null, null);
     }
 
+    /**
+     * Creates a Problem with the given HTTP status code and its standard title.
+     *
+     * @param status the HTTP status code
+     * @return a Problem with the standard title for the status
+     */
     public static Problem valueOf(int status) {
         return new Problem(DEFAULT_TYPE, DEFAULT_TITLES.getOrDefault(status, "Problem occurs"), status, null, null);
     }
 
+    /**
+     * Creates a Problem with the given HTTP status code, its standard title, and a detail message.
+     *
+     * @param status the HTTP status code
+     * @param detail a human-readable explanation specific to this occurrence
+     * @return a Problem with the standard title and detail
+     */
     public static Problem valueOf(int status, String detail) {
         return new Problem(DEFAULT_TYPE, DEFAULT_TITLES.getOrDefault(status, "Problem occurs"), status, detail, null);
     }
@@ -67,6 +111,9 @@ public class Problem implements Serializable{
         return new Problem(DEFAULT_TYPE, DEFAULT_TITLES.getOrDefault(status, "Problem occurs"), status, detail, instance);
     }
 
+    /**
+     * A single field-level validation error included in a Problem response.
+     */
     public static class Violation implements Serializable {
         private static final long serialVersionUID = 1L;
         private final String field;

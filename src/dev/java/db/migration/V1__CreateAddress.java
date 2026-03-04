@@ -8,7 +8,7 @@ import java.sql.PreparedStatement;
 import java.sql.Statement;
 
 public class V1__CreateAddress extends BaseJavaMigration {
-    private static final String INS = "INSERT INTO address(country_code, zip, city) VALUES(?,?,?)";
+    private static final String INS = "INSERT INTO address(country_code, zip, city, street) VALUES(?,?,?,?)";
     @Override
     public void migrate(Context context) throws Exception {
         Connection connection = context.getConnection();
@@ -30,10 +30,12 @@ public class V1__CreateAddress extends BaseJavaMigration {
             stmt.setString(1, "JP");
             stmt.setString(2, "167-0051");
             stmt.setString(3, "Tokyo");
+            stmt.setString(4, "Shibuya");
             stmt.executeUpdate();
             stmt.setString(1, "JP");
             stmt.setString(2, "555-5555");
             stmt.setString(3, "Osaka");
+            stmt.setString(4, "Shinsaibashi");
             stmt.executeUpdate();
             connection.commit();
         }

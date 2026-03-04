@@ -10,6 +10,28 @@ import org.slf4j.LoggerFactory;
 
 import java.util.function.Function;
 
+/**
+ * A branching node in the decision graph.
+ *
+ * <p>Evaluates a test function against the {@link RestContext} and branches to
+ * {@code thenNode} (truthy) or {@code elseNode} (falsy). The test function is
+ * resolved in priority order:
+ * <ol>
+ *   <li>The resource-level function registered via {@code @Decision}</li>
+ *   <li>The inline test passed at graph construction time</li>
+ * </ol>
+ *
+ * <p>Return value interpretation:
+ * <ul>
+ *   <li>{@code null} → falsy</li>
+ *   <li>{@link Boolean} → used directly</li>
+ *   <li>{@link Problem} → truthy, and the Problem is set as the context message</li>
+ *   <li>{@link String} → truthy, wrapped in {@link SimpleMessage} as the context message</li>
+ *   <li>Any other non-null value → truthy (message unchanged)</li>
+ * </ul>
+ *
+ * @author kawasima
+ */
 public class Decision implements Node<Node<?>> {
     private static final Logger LOG = LoggerFactory.getLogger("kotowari.restful.decision");
 
@@ -18,6 +40,12 @@ public class Decision implements Node<Node<?>> {
     private final Node<?> thenNode;
     private final Node<?> elseNode;
 
+    /**
+     * @param name     the decision point this node represents
+     * @param test     the inline test function, used when the resource has no override (may be {@code null})
+     * @param thenNode the node to follow when the test is truthy
+     * @param elseNode the node to follow when the test is falsy
+     */
     public Decision(DecisionPoint name,
                     Function<RestContext, ?> test,
                     Node<?> thenNode,

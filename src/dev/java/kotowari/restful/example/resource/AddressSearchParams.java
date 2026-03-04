@@ -3,8 +3,8 @@ package kotowari.restful.example.resource;
 import java.io.Serializable;
 
 public class AddressSearchParams implements Serializable {
-    private int limit;
-    private int offset;
+    private int limit = 20;
+    private int offset = 0;
     private String q;
 
     public int getLimit() {

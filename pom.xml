@@ -5,11 +5,10 @@
     <parent>
         <groupId>net.unit8.enkan</groupId>
         <artifactId>enkan-parent</artifactId>
-        <version>0.11.0</version>
+        <version>0.12.0</version>
     </parent>
 
     <artifactId>kotowari-restful</artifactId>
-    <version>0.3.0</version>
     <packaging>jar</packaging>
     <name>kotowari-restful</name>
     <description>Kotowari-Restful is a RESTful API specific framework.</description>
@@ -60,9 +59,9 @@
     </build>
 
     <properties>
-        <enkan.version>0.11.0</enkan.version>
-        <jackson.version>2.16.0</jackson.version>
-        <jackson.jaxrs.version>2.18.4</jackson.jaxrs.version>
+        <enkan.version>0.12.0</enkan.version>
+        <jackson.version>3.0.4</jackson.version>
+        <jackson.jaxrs.version>3.0.0-rc4</jackson.jaxrs.version>
     </properties>
 
     <dependencies>
@@ -80,12 +79,12 @@
             <version>5.0.0-M1</version>
         </dependency>
         <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
+            <groupId>tools.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
             <version>${jackson.version}</version>
         </dependency>
         <dependency>
-            <groupId>com.fasterxml.jackson.jakarta.rs</groupId>
+            <groupId>tools.jackson.jakarta.rs</groupId>
             <artifactId>jackson-jakarta-rs-json-provider</artifactId>
             <version>${jackson.jaxrs.version}</version>
             <scope>test</scope>
@@ -160,17 +159,11 @@
                 </dependency>
                 <dependency>
                     <groupId>net.unit8.enkan</groupId>
-                    <artifactId>enkan-repl-pseudo</artifactId>
-                    <version>${enkan.version}</version>
-                </dependency>
-
-                <dependency>
-                    <groupId>net.unit8.enkan</groupId>
-                    <artifactId>enkan-repl-jshell</artifactId>
+                    <artifactId>enkan-repl-server</artifactId>
                     <version>${enkan.version}</version>
                 </dependency>
                 <dependency>
-                    <groupId>com.fasterxml.jackson.jakarta.rs</groupId>
+                    <groupId>tools.jackson.jakarta.rs</groupId>
                     <artifactId>jackson-jakarta-rs-json-provider</artifactId>
                     <version>${jackson.jaxrs.version}</version>
                 </dependency>

@@ -22,9 +22,16 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * A middleware for invoking a resource.
+ * Terminal middleware that drives the kotowari-restful decision graph.
  *
- * @param <RES> The type of the response.
+ * <p>For each request, resolves the target resource class from the {@link Routable}
+ * request, builds (or retrieves from cache) a {@link ClassResource}, and delegates
+ * to {@link ResourceEngine#run(Resource, HttpRequest)}.
+ *
+ * <p>{@link ClassResource} instances are cached per class in a
+ * {@link ConcurrentHashMap}, so reflection and resolver compilation happen only once.
+ *
+ * @param <RES> the response type (typically {@link ApiResponse})
  * @author kawasima
  */
 @enkan.annotation.Middleware(name = "resourceInvoker", dependencies = "params")
@@ -58,13 +65,6 @@ public class ResourceInvokerMiddleware<RES> implements Middleware<HttpRequest, R
             engine.setPrintStackTrace(true);
         }
 
-    }
-
-    private Object inject(Object controller) {
-        if (componentInjector != null) {
-            componentInjector.inject(controller);
-        }
-        return controller;
     }
 
     /**
@@ -109,6 +109,12 @@ public class ResourceInvokerMiddleware<RES> implements Middleware<HttpRequest, R
         this.baseResource = baseResource;
     }
 
+    /**
+     * When {@code true}, exception details are included in 500 error responses.
+     * Useful for development; should be disabled in production.
+     *
+     * @param outputErrorReason {@code true} to include error details
+     */
     public void setOutputErrorReason(boolean outputErrorReason) {
         this.outputErrorReason = outputErrorReason;
     }

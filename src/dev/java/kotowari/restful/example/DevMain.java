@@ -3,9 +3,8 @@ package kotowari.restful.example;
 import enkan.system.EnkanSystem;
 import enkan.system.command.JsonRequestCommand;
 import enkan.system.command.SqlCommand;
-import enkan.system.repl.PseudoRepl;
+import enkan.system.repl.JShellRepl;
 import enkan.system.repl.ReplBoot;
-import enkan.system.repl.client.ReplClient;
 import kotowari.system.KotowariCommandRegister;
 
 /**
@@ -16,7 +15,7 @@ import kotowari.system.KotowariCommandRegister;
  *   <li><b>Direct mode</b> (default, no arguments) — starts {@link EnkanSystem} directly and
  *       blocks until the JVM receives a shutdown signal (Ctrl-C). Useful for running the server
  *       as a plain process or from {@code mvn exec:java}.</li>
- *   <li><b>REPL mode</b> ({@code --repl} argument) — launches a {@code PseudoRepl} with the
+ *   <li><b>REPL mode</b> ({@code --repl} argument) — launches a {@code JShellRepl} with the
  *       standard kotowari commands plus {@code sql} and {@code jsonRequest}, then opens an
  *       interactive REPL client. Useful for interactive development.</li>
  * </ul>
@@ -50,10 +49,10 @@ public class DevMain {
     }
 
     /**
-     * Starts a PseudoRepl with kotowari commands and opens the interactive REPL client.
+     * Starts a JShellRepl with kotowari commands and opens the interactive REPL client.
      */
     private static void startRepl() throws Exception {
-        PseudoRepl repl = new PseudoRepl(ExampleSystemFactory.class.getName());
+        JShellRepl repl = new JShellRepl(ExampleSystemFactory.class.getName());
 
         ReplBoot.start(repl,
                 new KotowariCommandRegister(),
@@ -61,7 +60,5 @@ public class DevMain {
                     r.registerCommand("sql", new SqlCommand());
                     r.registerCommand("jsonRequest", new JsonRequestCommand());
                 });
-
-        new ReplClient().start(repl.getPort());
     }
 }

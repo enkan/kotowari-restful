@@ -73,13 +73,13 @@ public class ExampleApplicationFactory implements ApplicationFactory {
                 new EntityManagerInjector()
         );
         WebApplication app = new WebApplication();
-        app.use(new ParamsMiddleware<>());
-        app.use(new MultipartParamsMiddleware<>());
-        app.use(new NestedParamsMiddleware<>());
-        app.use(builder(new ContentNegotiationMiddleware<>())
+        app.use(new ParamsMiddleware());
+        app.use(new MultipartParamsMiddleware());
+        app.use(new NestedParamsMiddleware());
+        app.use(builder(new ContentNegotiationMiddleware())
                 .set(ContentNegotiationMiddleware::setAllowedTypes, Set.of("application/json"))
                 .build());
-        app.use(new RoutingMiddleware<>(routes));
+        app.use(new RoutingMiddleware(routes));
         app.use(new EntityManagerMiddleware<>());
         app.use(new NonJtaTransactionMiddleware<>());
         app.use(new SerDesMiddleware<>());

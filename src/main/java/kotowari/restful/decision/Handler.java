@@ -10,6 +10,22 @@ import org.slf4j.LoggerFactory;
 import java.util.Optional;
 import java.util.function.Function;
 
+/**
+ * A terminal node in the decision graph that produces an {@link ApiResponse}.
+ *
+ * <p>The response body is resolved in priority order:
+ * <ol>
+ *   <li>The return value of the resource function (if one is registered and it does not return
+ *       {@code null}). If the function returns an {@link ApiResponse} directly, it is used as-is.</li>
+ *   <li>{@link RestContext#getMessage()} — a message set by a prior decision.</li>
+ *   <li>The {@code defaultMessage} passed at construction time.</li>
+ * </ol>
+ *
+ * <p>The HTTP status code comes from {@link RestContext#getStatus()} if set,
+ * otherwise from the {@code statusCode} passed at construction time.
+ *
+ * @author kawasima
+ */
 public class Handler implements Node<ApiResponse> {
     private static final Logger LOG = LoggerFactory.getLogger("kotowari.restful.decision");
 
@@ -17,6 +33,11 @@ public class Handler implements Node<ApiResponse> {
     private final int statusCode;
     private final Object defaultMessage;
 
+    /**
+     * @param point      the decision point this handler represents
+     * @param statusCode the default HTTP status code
+     * @param message    the default response body text, or {@code null} for no default body
+     */
     public Handler(DecisionPoint point, int statusCode, String message) {
         this.point = point;
         this.statusCode = statusCode;
@@ -25,7 +46,7 @@ public class Handler implements Node<ApiResponse> {
 
     @Override
     public ApiResponse execute(RestContext context) {
-        LOG.info("{}", point.name());
+        LOG.debug("{}", point.name());
         Object message = defaultMessage;
         Function<RestContext, ?> ftest = context.getResourceFunction(point);
         if (ftest != null) {

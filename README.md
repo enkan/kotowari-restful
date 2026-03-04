@@ -5,7 +5,7 @@ kotowari-restful is a RESTful API framework built on top of [enkan](https://gith
 ## Requirements
 
 - Java 21+
-- enkan/kotowari 0.11.0+
+- enkan/kotowari 0.12.0+
 
 ## Installation
 
@@ -15,7 +15,7 @@ Add the following dependency to your `pom.xml`:
 <dependency>
     <groupId>net.unit8.enkan</groupId>
     <artifactId>kotowari-restful</artifactId>
-    <version>0.3.0</version>
+    <version>0.12.0</version>
 </dependency>
 ```
 

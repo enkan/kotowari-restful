@@ -20,14 +20,28 @@ import static kotowari.restful.DecisionPoint.*;
 import static kotowari.restful.decision.DecisionFactory.*;
 
 /**
- * Executor for a decision graph.
+ * Owns and executes the Liberator-style decision graph.
+ *
+ * <p>The graph is built eagerly by {@link #createDefaultGraph()} at construction time
+ * and stored in a {@code final} field for thread safety.
+ * {@link #run(Resource, HttpRequest)} creates a per-request {@link RestContext}
+ * and traverses the graph until a terminal {@link Handler} produces an
+ * {@link ApiResponse}.
+ *
+ * <p>Exception handling:
+ * <ul>
+ *   <li>{@link MalformedBodyException} → 400 (Bad Request)</li>
+ *   <li>All other exceptions → stored on {@link RestContext#setException(Throwable)}
+ *       and routed through the {@code HANDLE_EXCEPTION} handler (default 500).
+ *       Resource classes may override {@code @Decision(HANDLE_EXCEPTION)} to customize.</li>
+ * </ul>
  *
  * @author kawasima
  */
 public class ResourceEngine {
     private static final Logger LOG = LoggerFactory.getLogger(ResourceEngine.class);
     private boolean printStackTrace = false;
-    private volatile Node<?> defaultGraph;
+    private final Node<?> defaultGraph = createDefaultGraph();
 
     /**
      * Execute a decision graph with the given context.
@@ -36,9 +50,6 @@ public class ResourceEngine {
      * @return API response
      */
     protected ApiResponse runDecisionGraph(RestContext context) {
-        if (defaultGraph == null) {
-            defaultGraph = createDefaultGraph();
-        }
         Node<?> decisionNode = defaultGraph;
 
         try {
@@ -279,6 +290,13 @@ public class ResourceEngine {
         return action(INITIALIZE_CONTEXT, serviceAvailable);
     }
 
+    /**
+     * When {@code true}, the {@code HANDLE_EXCEPTION} handler includes
+     * exception details in the response body as a {@link Problem}.
+     * Should only be enabled in development environments.
+     *
+     * @param printStackTrace {@code true} to include exception details in 500 responses
+     */
     public void setPrintStackTrace(boolean printStackTrace) {
         this.printStackTrace = printStackTrace;
     }
