@@ -3,6 +3,7 @@ package kotowari.restful.example.resource;
 import enkan.collection.Parameters;
 import enkan.component.BeansConverter;
 import kotowari.restful.Decision;
+import kotowari.restful.data.ContextKey;
 import kotowari.restful.component.BeansValidator;
 import kotowari.restful.resource.AllowedMethods;
 import kotowari.restful.data.Problem;
@@ -32,6 +33,10 @@ import static org.jooq.impl.DSL.table;
  */
 @AllowedMethods({"GET", "POST"})
 public class AddressesResource {
+
+    static final ContextKey<AddressSearchParams> SEARCH_PARAMS = ContextKey.of(AddressSearchParams.class);
+    static final ContextKey<Address> ADDRESS = ContextKey.of(Address.class);
+
     @Inject
     private BeansValidator validator;
 
@@ -41,7 +46,7 @@ public class AddressesResource {
     @Decision(value = MALFORMED, method={"GET"})
     public Problem isMalformed(Parameters params, RestContext context) {
         AddressSearchParams searchParams = beansConverter.createFrom(params, AddressSearchParams.class);
-        context.putValue(searchParams);
+        context.put(SEARCH_PARAMS, searchParams);
         Set<ConstraintViolation<AddressSearchParams>> violations = validator.validate(searchParams);
         if (violations.isEmpty()) return null;
         List<Problem.Violation> violationList = violations.stream()
@@ -89,7 +94,7 @@ public class AddressesResource {
                 body.careOf(), body.street(), body.additional(),
                 body.city(), body.zip(), body.countryCode()
         );
-        context.putValue(created);
+        context.put(ADDRESS, created);
         return true;
     }
 

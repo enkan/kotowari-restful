@@ -7,6 +7,7 @@ import kotowari.restful.data.Problem;
 import kotowari.restful.data.Resource;
 import kotowari.restful.data.RestContext;
 import kotowari.restful.exception.MalformedBodyException;
+import kotowari.restful.decision.Action;
 import kotowari.restful.decision.Decision;
 import kotowari.restful.decision.Handler;
 import kotowari.restful.decision.Node;
@@ -56,6 +57,7 @@ public class ResourceEngine {
             while (true) {
                 switch (decisionNode) {
                     case Decision d -> decisionNode = d.execute(context);
+                    case Action a -> decisionNode = a.execute(context);
                     case Handler h -> { return h.execute(context); }
                 }
             }
@@ -111,24 +113,29 @@ public class ResourceEngine {
         Node<?> isPutEnacted    = decision(PUT_ENACTED, isNew, handleAccepted);
         Node<?> handleNotFound  = handler(HANDLE_NOT_FOUND, 404, "Resource not found");
         Node<?> handleGone      = handler(HANDLE_GONE, 410, "Resource is gone");
-        Node<?> post            = action(POST, isPostEnacted);
+        // Shared error handler for actions that return a Problem.
+        // The Action node sets context.status and context.message from the Problem,
+        // so this handler simply emits whatever the context holds.
+        Node<?> handleActionError = handler(HANDLE_MALFORMED, 400, null);
+
+        Node<?> post            = action(POST, isPostEnacted, handleActionError);
         Node<?> canPostToMissing= decision(CAN_POST_TO_MISSING, post, handleNotFound);
         Node<?> postToMissing   = decision(POST_TO_MISSING, DefaultResource.testRequestMethod("POST"), canPostToMissing, handleNotFound);
         Node<?> handleMovedPermanently = handler(HANDLE_MOVED_PERMANENTLY, 301, null);
         Node<?> handleMovedTemporarily = handler(HANDLE_MOVED_TEMPORARILY, 307, null);
         Node<?> canPostToGone   = decision(CAN_POST_TO_GONE, post, handleGone);
-        Node<?> isPostToGone       = decision(POST_TO_GONE, canPostToGone, handleGone);
+        Node<?> isPostToGone       = decision(POST_TO_GONE, DefaultResource.testRequestMethod("POST"), canPostToGone, handleGone);
         Node<?> isMovedTemporarily = decision(MOVED_TEMPORARILY, handleMovedTemporarily, isPostToGone);
         Node<?> isMovedPermanently = decision(MOVED_PERMANENTLY, handleMovedPermanently, isMovedTemporarily);
         Node<?> didExist         = decision(EXISTED, isMovedPermanently, postToMissing);
         Node<?> handleConflict  = handler(HANDLE_CONFLICT, 409, "Conflict.");
         Node<?> isPatchEnacted  = decision(PATCH_ENACTED, isRespondWithEntity, handleAccepted);
-        Node<?> patch           = action(PATCH, isPatchEnacted);
-        Node<?> put             = action(PUT, isPutEnacted);
+        Node<?> patch           = action(PATCH, isPatchEnacted, handleActionError);
+        Node<?> put             = action(PUT, isPutEnacted, handleActionError);
         Node<?> isMethodPost      = decision(METHOD_POST, DefaultResource.testRequestMethod("POST"), post, put);
         Node<?> doesConflict        = decision(CONFLICT, handleConflict, isMethodPost);
         Node<?> handleNotImplemented = handler(HANDLE_NOT_IMPLEMENTED, 501, "Not implemented.");
-        Node<?> canPutToMissing = decision(CAN_PUT_TO_MISSING, doesConflict, handleNotImplemented);
+        Node<?> canPutToMissing = decision(CAN_PUT_TO_MISSING, doesConflict, handleNotFound);
         Node<?> doesPutToDifferentUrl = decision(PUT_TO_DIFFERENT_URL, handleMovedPermanently, canPutToMissing);
         Node<?> isMethodPut       = decision(METHOD_PUT, DefaultResource.testRequestMethod("PUT"), doesPutToDifferentUrl, didExist);
         Node<?> handlePreconditionFailed = handler(HANDLE_PRECONDITION_FAILED, 412, "Precondition failed.");
@@ -150,13 +157,12 @@ public class ResourceEngine {
             doesConflict,
             putToExisting);
         Node<?> isDeleteEnacted  = decision(DELETE_ENACTED, isRespondWithEntity, handleAccepted);
-        Node<?> delete           = action(DELETE, isDeleteEnacted);
+        Node<?> delete           = action(DELETE, isDeleteEnacted, handleActionError);
         Node<?> methodPatch      = decision(METHOD_PATCH,
             DefaultResource.testRequestMethod("PATCH"), patch, postToExisting);
         Node<?> methodDelete     = decision(METHOD_DELETE,
             DefaultResource.testRequestMethod("DELETE"), delete, methodPatch);
         Node<?> modifiedSince    = decision(MODIFIED_SINCE,
-            context -> null,
             methodDelete,
             handleNotModified);
         Node<?> ifModifiedSinceValidDate = decision(IF_MODIFIED_SINCE_VALID_DATE,
@@ -164,12 +170,11 @@ public class ResourceEngine {
             modifiedSince,
             methodDelete);
         Node<?> ifModifiedSinceExists = decision(IF_MODIFIED_SINCE_EXISTS,
-            context -> null,
+            context -> context.getRequest().getHeaders().containsKey("if-modified-since"),
             ifModifiedSinceValidDate,
             methodDelete);
 
         Node<?> etagMatchesForIfNone = decision(ETAG_MATCHES_FOR_IF_NONE,
-            context -> null,
             ifNoneMatch,
             ifModifiedSinceExists);
 
@@ -184,7 +189,6 @@ public class ResourceEngine {
             ifModifiedSinceExists);
 
         Node<?> unmodifiedSince = decision(UNMODIFIED_SINCE,
-            context -> null,
             handlePreconditionFailed,
             ifNoneMatchExists);
 
@@ -199,7 +203,6 @@ public class ResourceEngine {
             ifNoneMatchExists);
 
         Node<?> etagMatchesForIfMatch = decision(ETAG_MATCHES_FOR_IF_MATCH,
-            context -> null,
             ifUnmodifiedSinceValidDate,
             handlePreconditionFailed);
 
@@ -217,7 +220,6 @@ public class ResourceEngine {
         Node<?> processable = decision(PROCESSABLE, exists, handleUnprocessableEntity);
         Node<?> handleNotAcceptable = handler(HANDLE_NOT_ACCEPTABLE, 406, "No acceptable resource available.");
         Node<?> isEncodingAvailable = decision(ENCODING_AVAILABLE,
-            context -> true,
             processable, handleNotAcceptable);
 
         Node<?> acceptEncodingExists = decision(ACCEPT_ENCODING_EXISTS,
@@ -225,7 +227,6 @@ public class ResourceEngine {
             isEncodingAvailable, processable);
 
         Node<?> isCharsetAvailable = decision(CHARSET_AVAILABLE,
-            context -> true,
             acceptEncodingExists,
             handleNotAcceptable);
 
@@ -233,14 +234,12 @@ public class ResourceEngine {
             context -> context.getRequest().getHeaders().containsKey("accept-charset"),
             isCharsetAvailable, acceptEncodingExists);
         Node<?> languageAvailable = decision(LANGUAGE_AVAILABLE,
-            context -> true,
             acceptCharsetExists,
             handleNotAcceptable);
         Node<?> acceptLanguageExists = decision(ACCEPT_LANGUAGE_EXISTS,
             context -> context.getRequest().getHeaders().containsKey("accept-language"),
             languageAvailable, acceptCharsetExists);
         Node<?> mediaTypeAvailable = decision(MEDIA_TYPE_AVAILABLE,
-            context -> true,
             acceptLanguageExists, handleNotAcceptable);
         Node<?> acceptExists = decision(ACCEPT_EXISTS,
             context -> context.getRequest().getHeaders().containsKey("accept"),

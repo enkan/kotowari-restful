@@ -2,6 +2,7 @@ package kotowari.restful.example.resource;
 
 import enkan.collection.Parameters;
 import kotowari.restful.Decision;
+import kotowari.restful.data.ContextKey;
 import kotowari.restful.data.Problem;
 import kotowari.restful.data.RestContext;
 import kotowari.restful.example.data.Address;
@@ -28,6 +29,8 @@ import static org.jooq.impl.DSL.table;
 @AllowedMethods({"GET", "PUT", "DELETE"})
 public class AddressResource {
 
+    static final ContextKey<Address> ADDRESS = ContextKey.of(Address.class);
+
     @Decision(EXISTS)
     public boolean exists(Parameters params, DSLContext dsl, RestContext context) {
         Long id = Long.valueOf(params.get("id").toString());
@@ -36,7 +39,7 @@ public class AddressResource {
                 .where(ID.eq(id))
                 .fetchOne();
         if (rec == null) return false;
-        context.putValue(Address.fromRecord(rec));
+        context.put(ADDRESS, Address.fromRecord(rec));
         return true;
     }
 
@@ -76,7 +79,7 @@ public class AddressResource {
                 address.id(), body.careOf(), body.street(), body.additional(),
                 body.city(), body.zip(), body.countryCode()
         );
-        context.putValue(updated);
+        context.put(ADDRESS, updated);
     }
 
     @Decision(value = NEW, method = {"PUT"})

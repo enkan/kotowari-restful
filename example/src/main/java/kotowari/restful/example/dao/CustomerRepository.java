@@ -137,6 +137,119 @@ public class CustomerRepository {
     }
 
     /**
+     * Replaces all contact methods for the given customer.
+     *
+     * <p>Deletes every existing {@code contact_method} row for the customer and
+     * re-inserts the primary and secondary contact methods from the supplied
+     * {@link Customer}. Callers must set the transaction boundary via
+     * {@code @Transactional}.
+     *
+     * @param customerId the owning customer's ID
+     * @param customer   the customer whose contact methods should be persisted
+     */
+    public void replaceContactMethods(long customerId, Customer customer) {
+        dsl.deleteFrom(table("contact_method"))
+                .where(CUSTOMER_ID.eq(customerId))
+                .execute();
+        insertContactMethod(customerId, customer.primaryContactMethod(), true);
+        for (ContactMethod cm : customer.secondaryContactMethods()) {
+            insertContactMethod(customerId, cm, false);
+        }
+    }
+
+    /**
+     * Replaces all contact methods for the given customer, preserving the DB id of
+     * each contact method by updating in-place.
+     *
+     * <p>For each contact method in the supplied {@link CustomerWithIds}, the
+     * existing row is updated in place so that its {@code id} does not change.
+     * This avoids breaking URI references that embed a contact method id.
+     * Rows that are no longer present are deleted; new rows are inserted.
+     *
+     * @param customerId the owning customer's ID
+     * @param cwi        the updated customer aggregate with original DB ids
+     */
+    public void replaceContactMethodsWithIds(long customerId, CustomerWithIds cwi) {
+        // Collect all current ids
+        List<Long> existingIds = dsl.select(ID)
+                .from(table("contact_method"))
+                .where(CUSTOMER_ID.eq(customerId))
+                .fetch(ID);
+
+        // Update primary
+        updateContactMethod(cwi.primaryCmId(), cwi.customer().primaryContactMethod(), true);
+
+        // Update / insert secondaries
+        java.util.Iterator<java.util.Map.Entry<Long, ContactMethod>> it = cwi.secondaryCmIds().iterator();
+        while (it.hasNext()) {
+            java.util.Map.Entry<Long, ContactMethod> entry = it.next();
+            updateContactMethod(entry.getKey(), entry.getValue(), false);
+        }
+
+        // Delete any ids not in the updated set
+        java.util.Set<Long> keepIds = new java.util.HashSet<>();
+        keepIds.add(cwi.primaryCmId());
+        cwi.secondaryCmIds().forEach(e -> keepIds.add(e.getKey()));
+        for (long existingId : existingIds) {
+            if (!keepIds.contains(existingId)) {
+                dsl.deleteFrom(table("contact_method"))
+                        .where(ID.eq(existingId))
+                        .execute();
+            }
+        }
+    }
+
+    private void updateContactMethod(long cmId, ContactMethod cm, boolean isPrimary) {
+        switch (cm) {
+            case ContactMethod.Email e -> dsl.update(table("contact_method"))
+                    .set(IS_PRIMARY, isPrimary)
+                    .set(TYPE, "email")
+                    .set(LABEL, e.info().label().value())
+                    .set(EMAIL_ADDRESS, e.info().emailAddress().value())
+                    .set(ADDRESS1, (String) null)
+                    .set(ADDRESS2, (String) null)
+                    .set(CITY, (String) null)
+                    .set(STATE, (String) null)
+                    .set(ZIP_CODE, (String) null)
+                    .where(ID.eq(cmId))
+                    .execute();
+            case ContactMethod.PostalAddress p -> dsl.update(table("contact_method"))
+                    .set(IS_PRIMARY, isPrimary)
+                    .set(TYPE, "postalAddress")
+                    .set(LABEL, p.info().label().value())
+                    .set(EMAIL_ADDRESS, (String) null)
+                    .set(ADDRESS1, p.info().address1().value())
+                    .set(ADDRESS2, p.info().address2().map(String100::value).orElse(null))
+                    .set(CITY, p.info().city().value())
+                    .set(STATE, p.info().state().value())
+                    .set(ZIP_CODE, p.info().zipCode().value())
+                    .where(ID.eq(cmId))
+                    .execute();
+        }
+    }
+
+    /**
+     * Finds a single contact method by its own ID, scoped to the given customer.
+     *
+     * <p>Returns {@link Optional#empty()} if no row matches both {@code customer_id}
+     * and {@code id}.
+     *
+     * @param customerId the owning customer's ID
+     * @param cmId       the contact method's own ID
+     * @return the decoded {@link ContactMethod}, or empty if not found
+     */
+    public Optional<ContactMethod> findContactMethodById(long customerId, long cmId) {
+        Record rec = dsl.select(
+                        ID, CUSTOMER_ID, IS_PRIMARY, TYPE, LABEL,
+                        EMAIL_ADDRESS, ADDRESS1, ADDRESS2, CITY, STATE, ZIP_CODE)
+                .from(table("contact_method"))
+                .where(CUSTOMER_ID.eq(customerId), ID.eq(cmId))
+                .fetchOne();
+        if (rec == null) return Optional.empty();
+        return Optional.of(CustomerMapper.CONTACT_METHOD_DECODER.decode(rec).getOrThrow());
+    }
+
+    /**
      * Finds a customer by ID, returning the fully hydrated aggregate.
      *
      * <p>Queries the {@code customer} table for the given ID, then fetches all
@@ -173,5 +286,35 @@ public class CustomerRepository {
                 .fetch();
 
         return Optional.of(mapper.customer(customerRec, cmRecords).getOrThrow());
+    }
+
+    /**
+     * Finds a customer by ID, returning the fully hydrated aggregate together with
+     * the DB {@code id} of each contact method row.
+     *
+     * <p>Identical query to {@link #findById(long)}, but delegates to
+     * {@link CustomerMapper#customerWithIds} so that the DB ids of the
+     * contact method rows are preserved in the returned {@link CustomerWithIds}.
+     *
+     * @param id the customer ID to look up
+     * @return the customer with ids wrapped in an {@link Optional}, or empty if not found
+     */
+    public Optional<CustomerWithIds> findByIdWithIds(long id) {
+        Record customerRec = dsl.select(ID, FIRST_NAME, MIDDLE_NAME, LAST_NAME)
+                .from(table("customer"))
+                .where(ID.eq(id))
+                .fetchOne();
+
+        if (customerRec == null) return Optional.empty();
+
+        List<? extends Record> cmRecords = dsl.select(
+                        ID, CUSTOMER_ID, IS_PRIMARY, TYPE, LABEL,
+                        EMAIL_ADDRESS, ADDRESS1, ADDRESS2, CITY, STATE, ZIP_CODE)
+                .from(table("contact_method"))
+                .where(CUSTOMER_ID.eq(id))
+                .orderBy(ID)
+                .fetch();
+
+        return Optional.of(mapper.customerWithIds(customerRec, cmRecords).getOrThrow());
     }
 }

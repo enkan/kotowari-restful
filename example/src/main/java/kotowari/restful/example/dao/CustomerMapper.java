@@ -157,12 +157,26 @@ public class CustomerMapper {
     /** A decoded contact method paired with its {@code is_primary} flag. */
     private record TaggedContact(ContactMethod cm, boolean isPrimary) {}
 
+    /** A decoded contact method paired with its DB {@code id} and {@code is_primary} flag. */
+    private record TaggedContactWithId(long id, ContactMethod cm, boolean isPrimary) {}
+
     /**
      * Combines {@link #CONTACT_METHOD_DECODER} and {@link #IS_PRIMARY_DECODER}
      * into a single decoder that reads both from the same {@link Record}.
      */
     private static final JooqRecordDecoder<TaggedContact> TAGGED_CONTACT_DECODER =
             combine(CONTACT_METHOD_DECODER, IS_PRIMARY_DECODER).apply(TaggedContact::new)::decode;
+
+    /** Decodes the {@code id} column as a long. */
+    private static final JooqRecordDecoder<Long> ID_DECODER = field("id", long_());
+
+    /**
+     * Combines {@link #ID_DECODER}, {@link #CONTACT_METHOD_DECODER}, and
+     * {@link #IS_PRIMARY_DECODER} into a single decoder that reads all three from
+     * the same {@link Record}.
+     */
+    private static final JooqRecordDecoder<TaggedContactWithId> TAGGED_CONTACT_WITH_ID_DECODER =
+            combine(ID_DECODER, CONTACT_METHOD_DECODER, IS_PRIMARY_DECODER).apply(TaggedContactWithId::new)::decode;
 
     /**
      * Partitions a list of contact_method rows into one primary and zero or more
@@ -190,8 +204,30 @@ public class CustomerMapper {
                 return Result.ok(new ContactMethods(primary.get(), secondary));
             });
 
+    /**
+     * Partitions a list of contact_method rows into primary and secondary contact methods,
+     * preserving the DB {@code id} of each row.
+     */
+    private static final Decoder<List<? extends Record>, ContactMethodsWithIds> CONTACT_METHODS_WITH_IDS_DECODER = (recs, path) ->
+            Result.traverse(recs, TAGGED_CONTACT_WITH_ID_DECODER::decode, path).flatMap(tagged -> {
+                var primary = tagged.stream()
+                        .filter(TaggedContactWithId::isPrimary)
+                        .findFirst();
+                if (primary.isEmpty()) {
+                    return Result.fail(path, "missing_primary", "no primary contact method found");
+                }
+                var secondary = tagged.stream()
+                        .filter(t -> !t.isPrimary())
+                        .map(t -> Map.entry(t.id(), t.cm()))
+                        .toList();
+                return Result.ok(new ContactMethodsWithIds(primary.get().id(), primary.get().cm(), secondary));
+            });
+
     /** Holds the result of partitioning contact methods into primary and secondary. */
     private record ContactMethods(ContactMethod primary, List<ContactMethod> secondary) {}
+
+    /** Holds partitioned contact methods with their DB ids. */
+    private record ContactMethodsWithIds(long primaryId, ContactMethod primary, List<Map.Entry<Long, ContactMethod>> secondary) {}
 
     // ========================================================================
     // Top-level decoder — CustomerRecords → Customer
@@ -217,6 +253,20 @@ public class CustomerMapper {
     };
 
     /**
+     * Top-level decoder that builds a {@link CustomerWithIds} from a {@link CustomerRecords} input,
+     * preserving the DB {@code id} of each contact method row.
+     */
+    static final Decoder<CustomerRecords, CustomerWithIds> CUSTOMER_WITH_IDS_DECODER = (in, path) -> {
+        Result<PersonalName> nameResult = PERSONAL_NAME_DECODER.decode(in.customer(), path.append("customer"));
+        Result<ContactMethodsWithIds> cmResult = CONTACT_METHODS_WITH_IDS_DECODER.decode(in.contactMethods(), path.append("contactMethods"));
+        return Result.map2(nameResult, cmResult, (name, cms) ->
+                new CustomerWithIds(
+                        new Customer(name, cms.primary(), cms.secondary().stream().map(Map.Entry::getValue).toList()),
+                        cms.primaryId(),
+                        cms.secondary()));
+    };
+
+    /**
      * Builds a {@link Customer} domain object from a customer table row and its
      * associated contact_method rows.
      *
@@ -232,5 +282,18 @@ public class CustomerMapper {
      */
     public Result<Customer> customer(Record customerRec, List<? extends Record> contactMethodRecs) {
         return CUSTOMER_DECODER.decode(new CustomerRecords(customerRec, contactMethodRecs));
+    }
+
+    /**
+     * Builds a {@link CustomerWithIds} from a customer table row and its contact_method rows,
+     * preserving the DB {@code id} of each contact method.
+     *
+     * @param customerRec       a single row from the customer table
+     * @param contactMethodRecs rows from the contact_method table for this customer
+     * @return a {@link Result} containing the decoded {@link CustomerWithIds} on success,
+     *         or accumulated errors on failure
+     */
+    public Result<CustomerWithIds> customerWithIds(Record customerRec, List<? extends Record> contactMethodRecs) {
+        return CUSTOMER_WITH_IDS_DECODER.decode(new CustomerRecords(customerRec, contactMethodRecs));
     }
 }

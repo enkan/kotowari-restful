@@ -26,11 +26,14 @@ import java.util.concurrent.ConcurrentHashMap;
 @Middleware(name = "resourceMethodResolver", dependencies = {"routing"})
 public class ResourceMethodResolverMiddleware<RES> implements DecoratorMiddleware<HttpRequest, RES> {
 
-    private static final Map<String, DecisionPoint> HTTP_TO_ACTION = Map.of(
+    private static final Map<String, DecisionPoint> WRITE_ACTION = Map.of(
             "POST", DecisionPoint.POST,
             "PUT", DecisionPoint.PUT,
             "DELETE", DecisionPoint.DELETE,
-            "PATCH", DecisionPoint.PATCH,
+            "PATCH", DecisionPoint.PATCH
+    );
+
+    private static final Map<String, DecisionPoint> READ_ACTION = Map.of(
             "GET", DecisionPoint.HANDLE_OK,
             "HEAD", DecisionPoint.HANDLE_OK
     );
@@ -55,25 +58,38 @@ public class ResourceMethodResolverMiddleware<RES> implements DecoratorMiddlewar
     }
 
     private Method resolveMethod(Class<?> resourceClass, String httpMethod) {
-        DecisionPoint targetPoint = HTTP_TO_ACTION.get(httpMethod);
-        if (targetPoint == null) return null;
+        // Read methods resolve to HANDLE_OK
+        DecisionPoint readPoint = READ_ACTION.get(httpMethod);
+        if (readPoint != null) {
+            return findMethodForPoint(resourceClass, readPoint, httpMethod);
+        }
 
+        // Write methods: prefer MALFORMED (so SerDesMiddleware sees JsonNode body parameter)
+        // and fall back to the action method if no MALFORMED method is defined
+        if (WRITE_ACTION.containsKey(httpMethod)) {
+            Method malformed = findMethodForPoint(resourceClass, DecisionPoint.MALFORMED, httpMethod);
+            if (malformed != null) return malformed;
+            return findMethodForPoint(resourceClass, WRITE_ACTION.get(httpMethod), httpMethod);
+        }
+
+        return null;
+    }
+
+    private Method findMethodForPoint(Class<?> resourceClass, DecisionPoint point, String httpMethod) {
+        Method fallback = null;
         for (Method method : resourceClass.getMethods()) {
             Decision decision = method.getAnnotation(Decision.class);
-            if (decision == null) continue;
-            if (decision.value() != targetPoint) continue;
-
+            if (decision == null || decision.value() != point) continue;
             String[] methods = decision.method();
             if (methods.length == 0) {
-                return method;
-            }
-            for (String m : methods) {
-                if (httpMethod.equalsIgnoreCase(m)) {
-                    return method;
+                fallback = method;
+            } else {
+                for (String m : methods) {
+                    if (httpMethod.equalsIgnoreCase(m)) return method;
                 }
             }
         }
-        return null;
+        return fallback;
     }
 
     private record MethodKey(Class<?> resourceClass, String httpMethod) {}

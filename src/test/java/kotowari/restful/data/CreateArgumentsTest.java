@@ -21,6 +21,7 @@ import java.util.Map;
 import static kotowari.restful.DecisionPoint.HANDLE_OK;
 import static org.assertj.core.api.Assertions.assertThat;
 
+
 /**
  * Tests for ClassResource#createArguments covering all injection paths.
  */
@@ -36,6 +37,8 @@ class CreateArgumentsTest {
     }
 
     public static class ContextValueArgResource implements Serializable {
+        static final ContextKey<SearchParams> SEARCH_PARAMS_KEY = ContextKey.of(SearchParams.class);
+
         @Decision(HANDLE_OK)
         public SearchParams handleOk(SearchParams params) {
             return params;
@@ -133,7 +136,7 @@ class CreateArgumentsTest {
         RestContext context = new RestContext(parent, req);
         SearchParams params = new SearchParams();
         params.setQuery("Tokyo");
-        context.putValue(params);
+        context.put(ContextValueArgResource.SEARCH_PARAMS_KEY, params);
 
         Object result = resource.getFunction(HANDLE_OK).apply(context);
 

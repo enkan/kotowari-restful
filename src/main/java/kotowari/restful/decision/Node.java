@@ -7,14 +7,17 @@ import kotowari.restful.data.RestContext;
  *
  * <p>Each node receives a {@link RestContext} and produces a typed response:
  * <ul>
- *   <li>{@link Decision} returns the next {@code Node} to traverse.</li>
+ *   <li>{@link Decision} returns the next {@code Node} to traverse (branching).</li>
+ *   <li>{@link Action} returns the next {@code Node} to traverse (non-branching,
+ *       but routes to an error handler if the resource function returns a
+ *       {@link kotowari.restful.data.Problem}).</li>
  *   <li>{@link Handler} returns an {@link kotowari.restful.data.ApiResponse} (terminal).</li>
  * </ul>
  *
  * @param <RESPONSE> the type returned by {@link #execute(RestContext)}
  * @author kawasima
  */
-public sealed interface Node<RESPONSE> permits Decision, Handler {
+public sealed interface Node<RESPONSE> permits Decision, Action, Handler {
 
     /**
      * Executes this node against the given context.

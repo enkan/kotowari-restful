@@ -37,6 +37,7 @@ public class DefaultResource implements Resource {
     }
 
     private final Map<DecisionPoint, Function<RestContext, ?>> defaultFunctions = Map.ofEntries(
+            // User-customizable decisions
             entry(INITIALIZE_CONTEXT,     context -> true),
             entry(SERVICE_AVAILABLE,      TRUE),
             entry(KNOWN_METHOD,           testRequestMethod("GET", "HEAD", "OPTIONS", "POST", "PUT", "DELETE", "PATCH")),
@@ -48,6 +49,10 @@ public class DefaultResource implements Resource {
             entry(VALID_CONTENT_HEADER,   TRUE),
             entry(KNOWN_CONTENT_TYPE,     TRUE),
             entry(VALID_ENTITY_LENGTH,    TRUE),
+            entry(MEDIA_TYPE_AVAILABLE,   TRUE),
+            entry(LANGUAGE_AVAILABLE,     TRUE),
+            entry(CHARSET_AVAILABLE,      TRUE),
+            entry(ENCODING_AVAILABLE,     TRUE),
             entry(EXISTS,                 TRUE),
             entry(EXISTED,                FALSE),
             entry(RESPOND_WITH_ENTITY,    FALSE),
@@ -57,7 +62,12 @@ public class DefaultResource implements Resource {
             entry(MULTIPLE_REPRESENTATIONS, FALSE),
             entry(CONFLICT,               FALSE),
             entry(IF_MATCH_STAR,          context -> Objects.equals("*", context.getRequest().getHeaders().get("if-match"))),
+            entry(ETAG_MATCHES_FOR_IF_MATCH, FALSE),
+            entry(ETAG_MATCHES_FOR_IF_NONE,  FALSE),
+            entry(MODIFIED_SINCE,         FALSE),
+            entry(UNMODIFIED_SINCE,       FALSE),
             entry(CAN_POST_TO_MISSING,    TRUE),
+            entry(CAN_POST_TO_GONE,       TRUE),
             entry(CAN_PUT_TO_MISSING,     TRUE),
             entry(MOVED_PERMANENTLY,      FALSE),
             entry(MOVED_TEMPORARILY,      FALSE),
@@ -67,12 +77,40 @@ public class DefaultResource implements Resource {
             entry(DELETE_ENACTED,         TRUE),
             entry(PROCESSABLE,            TRUE),
 
-            // Handlers
-            entry(HANDLE_OK,              context -> "OK"),
+            // Actions
             entry(POST,                   TRUE),
             entry(PUT,                    TRUE),
             entry(DELETE,                 TRUE),
-            entry(PATCH,                  TRUE)
+            entry(PATCH,                  TRUE),
+
+            // Handlers
+            entry(HANDLE_OK,              context -> "OK"),
+            entry(HANDLE_CREATED,         context -> null),
+            entry(HANDLE_ACCEPTED,        context -> null),
+            entry(HANDLE_NO_CONTENT,      context -> null),
+            entry(HANDLE_MULTIPLE_REPRESENTATIONS, context -> null),
+            entry(HANDLE_MOVED_PERMANENTLY, context -> null),
+            entry(HANDLE_SEE_OTHER,       context -> null),
+            entry(HANDLE_NOT_MODIFIED,    context -> null),
+            entry(HANDLE_MOVED_TEMPORARILY, context -> null),
+            entry(HANDLE_MALFORMED,       context -> "Bad request."),
+            entry(HANDLE_UNAUTHORIZED,    context -> "Not authorized."),
+            entry(HANDLE_FORBIDDEN,       context -> "Forbidden."),
+            entry(HANDLE_NOT_FOUND,       context -> "Resource not found."),
+            entry(HANDLE_METHOD_NOT_ALLOWED, context -> "Method not allowed."),
+            entry(HANDLE_NOT_ACCEPTABLE,  context -> "No acceptable resource available."),
+            entry(HANDLE_CONFLICT,        context -> "Conflict."),
+            entry(HANDLE_GONE,            context -> "Resource is gone."),
+            entry(HANDLE_PRECONDITION_FAILED, context -> "Precondition failed."),
+            entry(HANDLE_REQUEST_ENTITY_TOO_LARGE, context -> "Request entity too large."),
+            entry(HANDLE_URI_TOO_LONG,    context -> "Request URI too long."),
+            entry(HANDLE_UNSUPPORTED_MEDIA_TYPE, context -> "Unsupported media type."),
+            entry(HANDLE_UNPROCESSABLE_ENTITY, context -> "Unprocessable entity."),
+            entry(HANDLE_EXCEPTION,       context -> "Internal server error."),
+            entry(HANDLE_NOT_IMPLEMENTED, context -> "Not implemented."),
+            entry(HANDLE_UNKNOWN_METHOD,  context -> "Unknown method."),
+            entry(HANDLE_SERVICE_NOT_AVAILABLE, context -> "Service not available."),
+            entry(HANDLE_OPTIONS,         context -> null)
         );
 
     @Override

@@ -19,6 +19,9 @@ import kotowari.middleware.SerDesMiddleware;
 import kotowari.restful.example.inject.DSLContextInjector;
 import kotowari.restful.example.resource.AddressResource;
 import kotowari.restful.example.resource.AddressesResource;
+import kotowari.restful.example.resource.ContactMethodPrimaryResource;
+import kotowari.restful.example.resource.ContactMethodResource;
+import kotowari.restful.example.resource.ContactMethodsResource;
 import kotowari.restful.example.resource.CustomerResource;
 import kotowari.restful.example.resource.CustomersResource;
 import kotowari.restful.middleware.ResourceMethodResolverMiddleware;
@@ -53,6 +56,9 @@ public class ExampleApplicationFactory implements ApplicationFactory<HttpRequest
             r.all("/addresses/:id").to(AddressResource.class);
             r.post("/customers").to(CustomersResource.class);
             r.get("/customers/:id").to(CustomerResource.class);
+            r.post("/customers/:id/contact-methods").to(ContactMethodsResource.class);
+            r.delete("/customers/:id/contact-methods/:cmId").to(ContactMethodResource.class);
+            r.put("/customers/:id/contact-methods/:cmId/primary").to(ContactMethodPrimaryResource.class);
         }).compile();
 
         List<ParameterInjector<?>> parameterInjectors = List.of(

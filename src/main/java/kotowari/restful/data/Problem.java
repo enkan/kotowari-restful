@@ -97,11 +97,21 @@ public class Problem implements Serializable{
     }
 
     /**
-         * A single field-level validation error included in a Problem response.
+     * A single field-level validation error included in a Problem response.
+     */
+    public record Violation(String field, String code, String message) implements Serializable {
+        @Serial
+        private static final long serialVersionUID = 1L;
+
+        /**
+         * Creates a Violation without a code (backward-compatible).
+         *
+         * @param field   the field path
+         * @param message the error message
          */
-        public record Violation(String field, String message) implements Serializable {
-            @Serial
-            private static final long serialVersionUID = 1L;
+        public Violation(String field, String message) {
+            this(field, null, message);
+        }
     }
 
     public URI getType() {

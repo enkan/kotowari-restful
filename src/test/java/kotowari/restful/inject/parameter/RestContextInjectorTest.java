@@ -1,6 +1,7 @@
 package kotowari.restful.inject.parameter;
 
 import enkan.data.DefaultHttpRequest;
+import kotowari.restful.data.ContextKey;
 import kotowari.restful.data.DefaultResource;
 import kotowari.restful.data.RestContext;
 import org.junit.jupiter.api.BeforeEach;
@@ -9,6 +10,8 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class RestContextInjectorTest {
+    private static final ContextKey<Foo> FOO_KEY = ContextKey.of(Foo.class);
+
     private RestContextInjector sut;
 
     @BeforeEach
@@ -27,7 +30,7 @@ class RestContextInjectorTest {
         RestContext context = new RestContext(new DefaultResource(), new DefaultHttpRequest());
         assertThat(sut.isApplicable(Foo.class, context))
                 .isFalse();
-        context.putValue(new Foo("Hello"));
+        context.put(FOO_KEY, new Foo("Hello"));
         assertThat(sut.isApplicable(Foo.class, context))
                 .isTrue();
         assertThat(sut.getInjectObject(context, Foo.class))
@@ -39,7 +42,7 @@ class RestContextInjectorTest {
     void getInjectObject() {
         RestContext context = new RestContext(new DefaultResource(), new DefaultHttpRequest());
         final Foo foo = new Foo("Hello");
-        context.putValue(foo);
+        context.put(FOO_KEY, foo);
         assertThat(sut.getInjectObject(context, Foo.class))
                 .isEqualTo(foo);
     }

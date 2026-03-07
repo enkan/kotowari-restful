@@ -8,7 +8,7 @@ import kotowari.restful.data.RestContext;
  * <p>Used as a dynamic fallback resolver in {@link kotowari.restful.data.ClassResource}
  * when no static {@link kotowari.inject.ParameterInjector} matches a parameter type.
  * If the parameter type is {@code RestContext} itself, the context is returned directly;
- * otherwise the value is looked up via {@link RestContext#getValue(Class)}.
+ * otherwise the value is looked up via {@link RestContext#getByType(Class)}.
  *
  * @author kawasima
  */
@@ -22,7 +22,7 @@ public class RestContextInjector {
      * @return {@code true} if the type is {@link RestContext} or a matching value exists in the context
      */
     public boolean isApplicable(Class<?> type, RestContext context) {
-        return RestContext.class.isAssignableFrom(type) || context.getValue(type).isPresent();
+        return RestContext.class.isAssignableFrom(type) || context.getByType(type).isPresent();
     }
 
     /**
@@ -38,7 +38,7 @@ public class RestContextInjector {
         if (RestContext.class.isAssignableFrom(type)) {
             return (K) context;
         } else {
-            return context.getValue(type).orElse(null);
+            return context.getByType(type).orElse(null);
         }
     }
 

@@ -36,7 +36,7 @@ import static enkan.util.ReflectionUtils.tryReflection;
  *   <li>{@link RestContext} — injected directly</li>
  *   <li>Any matching {@link kotowari.inject.ParameterInjector} (e.g. {@code Parameters},
  *       {@code EntityManager}) — static, determined at construction time</li>
- *   <li>{@link RestContext#getValue(Class)} — dynamic lookup at invocation time</li>
+ *   <li>{@link RestContext#getByType(Class)} — dynamic lookup at invocation time</li>
  *   <li>Deserialized request body (direct or via {@code BeansConverter}) — dynamic</li>
  * </ol>
  *
@@ -186,14 +186,14 @@ public class ClassResource implements Resource {
                 resolvers[i] = ctx -> ctx;
             } else {
                 ParameterInjector<?> injector = parameterInjectors.stream()
-                        .filter(pi -> pi.isApplicable(type, null))
+                        .filter(pi -> pi.isApplicable(type))
                         .findAny()
                         .orElse(null);
                 if (injector != null) {
                     final ParameterInjector<?> captured = injector;
                     resolvers[i] = ctx -> captured.getInjectObject(ctx.getRequest());
                 } else {
-                    // context.getValue(type) is dynamic; body deserialization type check is also dynamic
+                    // context.getByType(type) is dynamic; body deserialization type check is also dynamic
                     resolvers[i] = ctx -> {
                         if (REST_CONTEXT_INJECTOR.isApplicable(type, ctx)) {
                             return REST_CONTEXT_INJECTOR.getInjectObject(ctx, type);

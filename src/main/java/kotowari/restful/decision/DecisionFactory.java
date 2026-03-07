@@ -52,17 +52,35 @@ public class DecisionFactory {
     }
 
     /**
-     * Creates an action node — a decision that always proceeds to the same
-     * next node regardless of the function's return value.
+     * Creates an action node that proceeds to {@code next} on success, or
+     * routes to a default error handler when the resource function returns
+     * a {@link kotowari.restful.data.Problem}.
      *
-     * <p>Used for {@code POST}, {@code PUT}, {@code PATCH}, and {@code DELETE} actions.
+     * <p>Used for {@code POST}, {@code PUT}, {@code PATCH}, {@code DELETE},
+     * and {@code INITIALIZE_CONTEXT} actions.
      *
      * @param point the action decision point
-     * @param next  the node to follow after the action executes
-     * @return a new {@link Decision} where both branches lead to {@code next}
+     * @param next  the node to follow after the action executes successfully
+     * @return a new {@link Action}
      */
-    public static Decision action(DecisionPoint point, Node<?> next) {
-        return decision(point, next, next);
+    public static Action action(DecisionPoint point, Node<?> next) {
+        return new Action(point, next, null);
+    }
+
+    /**
+     * Creates an action node with an explicit error handler node.
+     *
+     * <p>When the resource function returns a {@link kotowari.restful.data.Problem},
+     * the action sets it as the context message and status, then routes to
+     * {@code errorNode} instead of {@code next}.
+     *
+     * @param point     the action decision point
+     * @param next      the node to follow on success
+     * @param errorNode the node to follow when the resource function returns a Problem
+     * @return a new {@link Action}
+     */
+    public static Action action(DecisionPoint point, Node<?> next, Node<?> errorNode) {
+        return new Action(point, next, errorNode);
     }
 
     /**

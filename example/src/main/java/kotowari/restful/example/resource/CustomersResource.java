@@ -1,10 +1,12 @@
 package kotowari.restful.example.resource;
 
 import kotowari.restful.Decision;
+import kotowari.restful.data.ContextKey;
 import kotowari.restful.data.Problem;
 import kotowari.restful.data.RestContext;
 import kotowari.restful.example.dao.CustomerRepository;
 import kotowari.restful.example.data.*;
+import kotowari.restful.example.data.CustomerWithIds;
 import jakarta.transaction.Transactional;
 import kotowari.restful.resource.AllowedMethods;
 import net.unit8.raoh.Err;
@@ -41,11 +43,15 @@ import static kotowari.restful.DecisionPoint.*;
 @AllowedMethods({"POST"})
 public class CustomersResource {
 
+    static final ContextKey<Customer> CUSTOMER = ContextKey.of(Customer.class);
+    static final ContextKey<CustomerId> CUSTOMER_ID = ContextKey.of(CustomerId.class);
+    static final ContextKey<CustomerWithIds> CUSTOMER_WITH_IDS = ContextKey.of(CustomerWithIds.class);
+
     /**
      * Validates the JSON request body against the {@link Customer} decoder.
      *
      * <p>If decoding succeeds, the decoded {@link Customer} is stored in the
-     * {@link RestContext} via {@link RestContext#putValue} so that it can be
+     * {@link RestContext} via {@link RestContext#put} so that it can be
      * injected into subsequent decision methods. Returns {@code null} (not malformed).
      *
      * <p>If decoding fails, each {@link net.unit8.raoh.Issue} is converted to a
@@ -59,12 +65,12 @@ public class CustomersResource {
     public Problem isMalformed(JsonNode body, RestContext context) {
         return switch (CustomerJsonDecoders.CUSTOMER.decode(body)) {
             case Ok<Customer> ok -> {
-                context.putValue(ok.value());
+                context.put(CUSTOMER, ok.value());
                 yield null;
             }
             case Err<Customer> err -> {
                 List<Problem.Violation> violations = err.issues().asList().stream()
-                        .map(issue -> new Problem.Violation(issue.path().toString(), issue.message()))
+                        .map(issue -> new Problem.Violation(issue.path().toString(), issue.code(), issue.message()))
                         .toList();
                 yield Problem.fromViolationList(violations);
             }
@@ -76,7 +82,7 @@ public class CustomersResource {
      *
      * <p>Creates a {@link CustomerRepository} from the injected {@link DSLContext},
      * inserts the customer (including all contact methods), and stores both the
-     * generated {@link CustomerId} and the original {@link Customer} in the
+     * generated {@link CustomerId} and the {@link CustomerWithIds} in the
      * context for the response handler.
      *
      * @param customer the validated customer from the request body
@@ -89,23 +95,24 @@ public class CustomersResource {
     public boolean create(Customer customer, DSLContext dsl, RestContext context) {
         CustomerRepository repo = new CustomerRepository(dsl);
         CustomerId id = repo.insert(customer);
-        context.putValue(id);
-        context.putValue(customer);
+        CustomerWithIds cwi = repo.findByIdWithIds(id.value()).orElseThrow();
+        context.put(CUSTOMER_ID, id);
+        context.put(CUSTOMER_WITH_IDS, cwi);
         return true;
     }
 
     /**
      * Builds the 201 Created response body.
      *
-     * <p>Converts the persisted {@link Customer} and its generated {@link CustomerId}
+     * <p>Converts the persisted {@link CustomerWithIds} and its generated {@link CustomerId}
      * into a {@link CustomerResponse} DTO suitable for JSON serialization.
      *
-     * @param id       the generated customer ID
-     * @param customer the persisted customer
+     * @param id  the generated customer ID
+     * @param cwi the persisted customer with IDs
      * @return the response body for the 201 response
      */
     @Decision(HANDLE_CREATED)
-    public CustomerResponse handleCreated(CustomerId id, Customer customer) {
-        return CustomerResponse.from(id, customer);
+    public CustomerResponse handleCreated(CustomerId id, CustomerWithIds cwi) {
+        return CustomerResponse.from(id, cwi);
     }
 }

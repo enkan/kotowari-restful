@@ -12,7 +12,7 @@ public class DSLContextInjector implements ParameterInjector<DSLContext> {
     }
 
     @Override
-    public boolean isApplicable(Class<?> type, HttpRequest request) {
+    public boolean isApplicable(Class<?> type) {
         return DSLContext.class.isAssignableFrom(type);
     }
 

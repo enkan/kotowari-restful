@@ -14,9 +14,20 @@ public record CustomerResponse(
         return new CustomerResponse(
                 id.value(),
                 PersonalNameResponse.from(cmd.name()),
-                ContactMethodResponse.from(cmd.primaryContactMethod()),
+                ContactMethodResponse.from(0L, cmd.primaryContactMethod()),
                 cmd.secondaryContactMethods().stream()
-                        .map(ContactMethodResponse::from)
+                        .map(cm -> ContactMethodResponse.from(0L, cm))
+                        .toList()
+        );
+    }
+
+    static CustomerResponse from(CustomerId id, CustomerWithIds cwi) {
+        return new CustomerResponse(
+                id.value(),
+                PersonalNameResponse.from(cwi.customer().name()),
+                ContactMethodResponse.from(cwi.primaryCmId(), cwi.customer().primaryContactMethod()),
+                cwi.secondaryCmIds().stream()
+                        .map(e -> ContactMethodResponse.from(e.getKey(), e.getValue()))
                         .toList()
         );
     }
@@ -34,13 +45,15 @@ public record CustomerResponse(
     public sealed interface ContactMethodResponse
             permits ContactMethodResponse.EmailResponse, ContactMethodResponse.PostalAddressResponse {
 
-        static ContactMethodResponse from(ContactMethod cm) {
+        static ContactMethodResponse from(long cmId, ContactMethod cm) {
             return switch (cm) {
                 case ContactMethod.Email e -> new EmailResponse(
+                        cmId,
                         e.info().label().value(),
                         e.info().emailAddress().value()
                 );
                 case ContactMethod.PostalAddress p -> new PostalAddressResponse(
+                        cmId,
                         p.info().label().value(),
                         p.info().address1().value(),
                         p.info().address2().map(String100::value).orElse(null),
@@ -51,9 +64,10 @@ public record CustomerResponse(
             };
         }
 
-        record EmailResponse(String label, String emailAddress) implements ContactMethodResponse {}
+        record EmailResponse(long id, String label, String emailAddress) implements ContactMethodResponse {}
 
         record PostalAddressResponse(
+                long id,
                 String label,
                 String address1,
                 String address2,

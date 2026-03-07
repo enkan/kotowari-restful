@@ -61,6 +61,7 @@ HTTP Request
 ### Coding conventions
 
 - **Javadoc**: Write all Javadoc in English. Every public and package-private class, method, and field should have thorough Javadoc including `@param`, `@return`, and `@throws` tags where applicable. Describe the purpose, behavior, and any side effects clearly.
+- **README / Documentation**: Write all README files and documentation in English.
 
 ### Test helpers
 
