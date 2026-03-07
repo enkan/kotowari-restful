@@ -14,7 +14,7 @@ import kotowari.restful.data.RestContext;
  * @param <RESPONSE> the type returned by {@link #execute(RestContext)}
  * @author kawasima
  */
-public interface Node<RESPONSE> {
+public sealed interface Node<RESPONSE> permits Decision, Handler {
 
     /**
      * Executes this node against the given context.

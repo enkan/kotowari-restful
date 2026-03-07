@@ -22,7 +22,6 @@ public class ApiResponse implements HasHeaders, HasStatus, HasBody {
 
     public ApiResponse() {
         headers = Headers.empty();
-        status = 200;
     }
 
     public int getStatus() {

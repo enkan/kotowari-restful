@@ -8,22 +8,10 @@ import java.io.Serializable;
  *
  * <p>Serialized to JSON as {@code {"message": "..."}}.
  *
+ * @param message the message text
  * @author kawasima
  */
-public class SimpleMessage implements Serializable {
-    private String message;
-
-    public SimpleMessage(String message) {
-        this.message = message;
-    }
-    public String getMessage() {
-        return message;
-    }
-
-    public void setMessage(String message) {
-        this.message = message;
-    }
-
+public record SimpleMessage(String message) implements Serializable {
     @Override
     public String toString() {
         return message;

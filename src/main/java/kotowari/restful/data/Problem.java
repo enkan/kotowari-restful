@@ -2,11 +2,10 @@ package kotowari.restful.data;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 
-import jakarta.validation.ConstraintViolation;
+import java.io.Serial;
 import java.io.Serializable;
 import java.net.URI;
 import java.util.*;
-import java.util.stream.Collectors;
 
 /**
  * Immutable RFC 9457 "Problem Details for HTTP APIs" representation.
@@ -14,8 +13,7 @@ import java.util.stream.Collectors;
  * <p>Instances are created via factory methods:
  * <ul>
  *   <li>{@link #valueOf(int)} / {@link #valueOf(int, String)} — from an HTTP status code</li>
- *   <li>{@link #fromViolations(Set)} — from Jakarta Validation constraint violations (400)</li>
- *   <li>{@link #fromException(Exception)} — from an unhandled exception (500)</li>
+ *   <li>{@link #fromViolationList(List)} — from a list of {@link Violation}s (400)</li>
  * </ul>
  *
  * <p>Serialized to JSON by Jackson; fields with {@code null} or empty values are omitted.
@@ -23,6 +21,7 @@ import java.util.stream.Collectors;
  * @author kawasima
  */
 public class Problem implements Serializable{
+    @Serial
     private static final long serialVersionUID = 1L;
     private static final URI DEFAULT_TYPE = URI.create("about:blank");
     private final URI type;
@@ -59,27 +58,13 @@ public class Problem implements Serializable{
     }
 
     /**
-     * Creates a 400 (Bad Request) Problem from Jakarta Validation constraint violations.
+     * Creates a 400 (Bad Request) Problem from a pre-built list of {@link Violation}s.
      *
-     * @param <T>        the type of the validated bean
-     * @param violations the set of constraint violations
+     * @param violations the list of violations
      * @return a Problem with status 400 and the violations list
      */
-    public static <T> Problem fromViolations(Set<ConstraintViolation<T>> violations) {
-        List<Violation> violationList = violations.stream()
-                .map(Violation::new)
-                .collect(Collectors.toList());
-        return new Problem(DEFAULT_TYPE, "Malformed", 400, null, null, violationList);
-    }
-
-    /**
-     * Creates a 500 (Internal Server Error) Problem from an unhandled exception.
-     *
-     * @param e the exception
-     * @return a Problem with status 500
-     */
-    public static Problem fromException(Exception e) {
-        return new Problem(DEFAULT_TYPE, "Internal Server Error", 500, null, null);
+    public static Problem fromViolationList(List<Violation> violations) {
+        return new Problem(DEFAULT_TYPE, "Malformed", 400, null, null, violations);
     }
 
     /**
@@ -112,30 +97,11 @@ public class Problem implements Serializable{
     }
 
     /**
-     * A single field-level validation error included in a Problem response.
-     */
-    public static class Violation implements Serializable {
-        private static final long serialVersionUID = 1L;
-        private final String field;
-        private final String message;
-
-        public <T> Violation(ConstraintViolation<T> constraintViolation) {
-            this.field = constraintViolation.getPropertyPath().toString();
-            this.message = constraintViolation.getMessage();
-        }
-
-        public Violation(String field, String message) {
-            this.field = field;
-            this.message = message;
-        }
-
-        public String getField() {
-            return field;
-        }
-
-        public String getMessage() {
-            return message;
-        }
+         * A single field-level validation error included in a Problem response.
+         */
+        public record Violation(String field, String message) implements Serializable {
+            @Serial
+            private static final long serialVersionUID = 1L;
     }
 
     public URI getType() {
@@ -162,69 +128,70 @@ public class Problem implements Serializable{
         return violations;
     }
 
-    private static final Map<Integer, String> DEFAULT_TITLES = new HashMap<>();
-
+    private static final Map<Integer, String> DEFAULT_TITLES;
     static {
-        DEFAULT_TITLES.put(100, "Continue");
-        DEFAULT_TITLES.put(101, "Switching Protocols");
-        DEFAULT_TITLES.put(102, "Processing");
-        DEFAULT_TITLES.put(103, "Checkpoint");
-        DEFAULT_TITLES.put(200, "OK");
-        DEFAULT_TITLES.put(201, "Created");
-        DEFAULT_TITLES.put(202, "Accepted");
-        DEFAULT_TITLES.put(203, "Non-Authoritative Information");
-        DEFAULT_TITLES.put(204, "No Content");
-        DEFAULT_TITLES.put(205, "Reset Content");
-        DEFAULT_TITLES.put(206, "Partial Content");
-        DEFAULT_TITLES.put(207, "Multi-Status");
-        DEFAULT_TITLES.put(208, "Already Reported");
-        DEFAULT_TITLES.put(226, "IM Used");
-        DEFAULT_TITLES.put(300, "Multiple Choices");
-        DEFAULT_TITLES.put(301, "Moved Permanently");
-        DEFAULT_TITLES.put(302, "Found");
-        DEFAULT_TITLES.put(303, "See Other");
-        DEFAULT_TITLES.put(304, "Not Modified");
-        DEFAULT_TITLES.put(305, "Use Proxy");
-        DEFAULT_TITLES.put(307, "Temporary Redirect");
-        DEFAULT_TITLES.put(308, "Permanent Redirect");
-        DEFAULT_TITLES.put(400, "Bad Request");
-        DEFAULT_TITLES.put(401, "Unauthorized");
-        DEFAULT_TITLES.put(402, "Payment Required");
-        DEFAULT_TITLES.put(403, "Forbidden");
-        DEFAULT_TITLES.put(404, "Not Found");
-        DEFAULT_TITLES.put(405, "Method Not Allowed");
-        DEFAULT_TITLES.put(406, "Not Acceptable");
-        DEFAULT_TITLES.put(407, "Proxy Authentication Required");
-        DEFAULT_TITLES.put(408, "Request Timeout");
-        DEFAULT_TITLES.put(409, "Conflict");
-        DEFAULT_TITLES.put(410, "Gone");
-        DEFAULT_TITLES.put(411, "Length Required");
-        DEFAULT_TITLES.put(412, "Precondition Failed");
-        DEFAULT_TITLES.put(413, "Request Entity Too Large");
-        DEFAULT_TITLES.put(414, "Request-URI Too Long");
-        DEFAULT_TITLES.put(415, "Unsupported Media Type");
-        DEFAULT_TITLES.put(416, "Requested Range Not Satisfiable");
-        DEFAULT_TITLES.put(417, "Expectation Failed");
-        DEFAULT_TITLES.put(418, "I'm a teapot");
-        DEFAULT_TITLES.put(422, "Unprocessable Entity");
-        DEFAULT_TITLES.put(423, "Locked");
-        DEFAULT_TITLES.put(424, "Failed Dependency");
-        DEFAULT_TITLES.put(426, "Upgrade Required");
-        DEFAULT_TITLES.put(428, "Precondition Required");
-        DEFAULT_TITLES.put(429, "Too Many Requests");
-        DEFAULT_TITLES.put(431, "Request Header Fields Too Large");
-        DEFAULT_TITLES.put(451, "Unavailable For Legal Reasons");
-        DEFAULT_TITLES.put(500, "Internal Server Error");
-        DEFAULT_TITLES.put(501, "Not Implemented");
-        DEFAULT_TITLES.put(502, "Bad Gateway");
-        DEFAULT_TITLES.put(503, "Service Unavailable");
-        DEFAULT_TITLES.put(504, "Gateway Timeout");
-        DEFAULT_TITLES.put(505, "HTTP Version Not Supported");
-        DEFAULT_TITLES.put(506, "Variant Also Negotiates");
-        DEFAULT_TITLES.put(507, "Insufficient Storage");
-        DEFAULT_TITLES.put(508, "Loop Detected");
-        DEFAULT_TITLES.put(509, "Bandwidth Limit Exceeded");
-        DEFAULT_TITLES.put(510, "Not Extended");
-        DEFAULT_TITLES.put(511, "Network Authentication Required");
+        Map<Integer, String> m = new HashMap<>();
+        m.put(100, "Continue");
+        m.put(101, "Switching Protocols");
+        m.put(102, "Processing");
+        m.put(103, "Checkpoint");
+        m.put(200, "OK");
+        m.put(201, "Created");
+        m.put(202, "Accepted");
+        m.put(203, "Non-Authoritative Information");
+        m.put(204, "No Content");
+        m.put(205, "Reset Content");
+        m.put(206, "Partial Content");
+        m.put(207, "Multi-Status");
+        m.put(208, "Already Reported");
+        m.put(226, "IM Used");
+        m.put(300, "Multiple Choices");
+        m.put(301, "Moved Permanently");
+        m.put(302, "Found");
+        m.put(303, "See Other");
+        m.put(304, "Not Modified");
+        m.put(305, "Use Proxy");
+        m.put(307, "Temporary Redirect");
+        m.put(308, "Permanent Redirect");
+        m.put(400, "Bad Request");
+        m.put(401, "Unauthorized");
+        m.put(402, "Payment Required");
+        m.put(403, "Forbidden");
+        m.put(404, "Not Found");
+        m.put(405, "Method Not Allowed");
+        m.put(406, "Not Acceptable");
+        m.put(407, "Proxy Authentication Required");
+        m.put(408, "Request Timeout");
+        m.put(409, "Conflict");
+        m.put(410, "Gone");
+        m.put(411, "Length Required");
+        m.put(412, "Precondition Failed");
+        m.put(413, "Request Entity Too Large");
+        m.put(414, "Request-URI Too Long");
+        m.put(415, "Unsupported Media Type");
+        m.put(416, "Requested Range Not Satisfiable");
+        m.put(417, "Expectation Failed");
+        m.put(418, "I'm a teapot");
+        m.put(422, "Unprocessable Entity");
+        m.put(423, "Locked");
+        m.put(424, "Failed Dependency");
+        m.put(426, "Upgrade Required");
+        m.put(428, "Precondition Required");
+        m.put(429, "Too Many Requests");
+        m.put(431, "Request Header Fields Too Large");
+        m.put(451, "Unavailable For Legal Reasons");
+        m.put(500, "Internal Server Error");
+        m.put(501, "Not Implemented");
+        m.put(502, "Bad Gateway");
+        m.put(503, "Service Unavailable");
+        m.put(504, "Gateway Timeout");
+        m.put(505, "HTTP Version Not Supported");
+        m.put(506, "Variant Also Negotiates");
+        m.put(507, "Insufficient Storage");
+        m.put(508, "Loop Detected");
+        m.put(509, "Bandwidth Limit Exceeded");
+        m.put(510, "Not Extended");
+        m.put(511, "Network Authentication Required");
+        DEFAULT_TITLES = Collections.unmodifiableMap(m);
     }
 }

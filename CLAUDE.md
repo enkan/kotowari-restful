@@ -17,8 +17,11 @@ mvn test -Dtest=ResourceEngineTest
 # Run a single test method
 mvn test -Dtest=CreateArgumentsTest#injectRestContextItself
 
-# Build with dev profile (includes example app sources)
-mvn compile -Pdev
+# Build example project (under example/ directory, independent Maven project)
+cd example && mvn compile
+
+# Run example app
+cd example && mvn exec:java
 ```
 
 ## Architecture
@@ -47,13 +50,17 @@ HTTP Request
 - **`MethodMeta`** — caches per-method argument resolvers (`Function<RestContext, Object>[]`) built once at construction time, avoiding per-request `parameterInjectors.stream()` scanning.
 - **`DefaultResource`** — provides the default implementations for all decision points (e.g. `EXISTS → true`, `MALFORMED → false`). Used as the parent resource for `ClassResource`.
 - **`RestContext`** — mutable per-request state: the `HttpRequest`, a typed value store (`putValue`/`getValue`), the response message, status override, headers, and the caught `exception` (set on error, readable from `HANDLE_EXCEPTION` handlers via `context.getException()`).
-- **`Problem`** — immutable RFC 9457 problem JSON DTO. Use factory methods (`valueOf`, `fromViolations`, `fromException`); no setters.
+- **`Problem`** — immutable RFC 9457 problem JSON DTO. Use factory methods (`valueOf`, `fromViolationList`); no setters. Exception details are never exposed in responses for security reasons.
 
 ### Argument injection priority (in `buildResolvers`)
 
 1. `RestContext.class.isAssignableFrom(type)` → inject `context` (static, pre-computed)
 2. Any `ParameterInjector.isApplicable(type, null)` match → call `injector.getInjectObject(request)` (static, pre-computed)
 3. Fallback resolver (runtime): `context.getValue(type)` (dynamic context store) → deserialized body direct assign → `beansConverter.createFrom()` (throws `MalformedBodyException` on failure → 400)
+
+### Coding conventions
+
+- **Javadoc**: Write all Javadoc in English. Every public and package-private class, method, and field should have thorough Javadoc including `@param`, `@return`, and `@throws` tags where applicable. Describe the purpose, behavior, and any side effects clearly.
 
 ### Test helpers
 

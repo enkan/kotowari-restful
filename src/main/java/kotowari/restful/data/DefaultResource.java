@@ -2,15 +2,12 @@ package kotowari.restful.data;
 
 import kotowari.restful.DecisionPoint;
 
-import java.util.Arrays;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
-import static enkan.util.ThreadingUtils.some;
 import static java.util.Map.entry;
 import static kotowari.restful.DecisionPoint.*;
 
@@ -31,14 +28,11 @@ import static kotowari.restful.DecisionPoint.*;
 public class DefaultResource implements Resource {
     private static final Function<RestContext, ?> TRUE = (context) -> true;
     private static final Function<RestContext, ?> FALSE = (context) -> false;
-    private Function<RestContext, ?> testRequestMethod(String... methods) {
-        Set<String> methodSet = Arrays.stream(methods)
-                .map(m -> m.toUpperCase(Locale.US))
-                .collect(Collectors.toSet());
+    public static Function<RestContext, ?> testRequestMethod(String... methods) {
+        Set<String> methodSet = Set.of(methods);
         return context -> {
-            String method = some(context.getRequest().getRequestMethod(), m -> m.toUpperCase(Locale.US))
-                    .orElse("");
-            return methodSet.contains(method);
+            String method = context.getRequest().getRequestMethod();
+            return method != null && methodSet.contains(method.toUpperCase(Locale.US));
         };
     }
 

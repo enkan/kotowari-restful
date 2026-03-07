@@ -2,6 +2,7 @@ package kotowari.restful;
 
 import enkan.data.HttpRequest;
 import kotowari.restful.data.ApiResponse;
+import kotowari.restful.data.DefaultResource;
 import kotowari.restful.data.Problem;
 import kotowari.restful.data.Resource;
 import kotowari.restful.data.RestContext;
@@ -12,10 +13,9 @@ import kotowari.restful.decision.Node;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.*;
+import java.util.Objects;
 import java.util.function.Function;
 
-import static enkan.util.BeanBuilder.builder;
 import static kotowari.restful.DecisionPoint.*;
 import static kotowari.restful.decision.DecisionFactory.*;
 
@@ -53,30 +53,26 @@ public class ResourceEngine {
         Node<?> decisionNode = defaultGraph;
 
         try {
-            do {
-                if (decisionNode instanceof Decision) {
-                    decisionNode = ((Decision) decisionNode).execute(context);
-                } else if (decisionNode instanceof Handler) {
-                    return ((Handler) decisionNode).execute(context);
+            while (true) {
+                switch (decisionNode) {
+                    case Decision d -> decisionNode = d.execute(context);
+                    case Handler h -> { return h.execute(context); }
                 }
-            } while (decisionNode != null);
+            }
         } catch(MalformedBodyException e) {
             LOG.debug("Malformed request body", e);
-            return builder(new ApiResponse())
-                    .set(ApiResponse::setStatus, 400)
-                    .set(ApiResponse::setBody, Problem.valueOf(400))
-                    .build();
+            ApiResponse response = new ApiResponse();
+            response.setStatus(400);
+            response.setBody(Problem.valueOf(400));
+            return response;
         } catch(Exception e) {
             LOG.error("Error occurs at handling resource", e);
             context.setException(e);
             if (printStackTrace) {
-                context.setMessage(Problem.fromException(e));
+                context.setMessage(Problem.valueOf(500));
             }
             return handler(HANDLE_EXCEPTION, 500, null).execute(context);
         }
-        return builder(new ApiResponse())
-                .set(ApiResponse::setStatus, 500)
-                .build();
     }
 
     /**
@@ -91,12 +87,7 @@ public class ResourceEngine {
         return runDecisionGraph(context);
     }
 
-    private Function<RestContext, ?> createIsMethod(String... methods) {
-        Set<String> methodSet = new HashSet<>(Arrays.asList(methods));
-        return context -> methodSet.contains(context.getRequest().getRequestMethod().toUpperCase(Locale.US));
-    }
-
-    private final Function<RestContext, ?> IF_MATCH_STAR_FUNC = context -> Objects.equals("*", context.getRequest().getHeaders().get("if-match"));
+    private static final Function<RestContext, ?> IF_MATCH_STAR_FUNC = context -> Objects.equals("*", context.getRequest().getHeaders().get("if-match"));
 
     /**
      * Create a default decision graph
@@ -122,7 +113,7 @@ public class ResourceEngine {
         Node<?> handleGone      = handler(HANDLE_GONE, 410, "Resource is gone");
         Node<?> post            = action(POST, isPostEnacted);
         Node<?> canPostToMissing= decision(CAN_POST_TO_MISSING, post, handleNotFound);
-        Node<?> postToMissing   = decision(POST_TO_MISSING, createIsMethod("POST"), canPostToMissing, handleNotFound);
+        Node<?> postToMissing   = decision(POST_TO_MISSING, DefaultResource.testRequestMethod("POST"), canPostToMissing, handleNotFound);
         Node<?> handleMovedPermanently = handler(HANDLE_MOVED_PERMANENTLY, 301, null);
         Node<?> handleMovedTemporarily = handler(HANDLE_MOVED_TEMPORARILY, 307, null);
         Node<?> canPostToGone   = decision(CAN_POST_TO_GONE, post, handleGone);
@@ -134,12 +125,12 @@ public class ResourceEngine {
         Node<?> isPatchEnacted  = decision(PATCH_ENACTED, isRespondWithEntity, handleAccepted);
         Node<?> patch           = action(PATCH, isPatchEnacted);
         Node<?> put             = action(PUT, isPutEnacted);
-        Node<?> isMethodPost      = decision(METHOD_POST, createIsMethod("POST"), post, put);
+        Node<?> isMethodPost      = decision(METHOD_POST, DefaultResource.testRequestMethod("POST"), post, put);
         Node<?> doesConflict        = decision(CONFLICT, handleConflict, isMethodPost);
         Node<?> handleNotImplemented = handler(HANDLE_NOT_IMPLEMENTED, 501, "Not implemented.");
         Node<?> canPutToMissing = decision(CAN_PUT_TO_MISSING, doesConflict, handleNotImplemented);
         Node<?> doesPutToDifferentUrl = decision(PUT_TO_DIFFERENT_URL, handleMovedPermanently, canPutToMissing);
-        Node<?> isMethodPut       = decision(METHOD_PUT, createIsMethod("PUT"), doesPutToDifferentUrl, didExist);
+        Node<?> isMethodPut       = decision(METHOD_PUT, DefaultResource.testRequestMethod("PUT"), doesPutToDifferentUrl, didExist);
         Node<?> handlePreconditionFailed = handler(HANDLE_PRECONDITION_FAILED, 412, "Precondition failed.");
         Node<?> doesIfMatchStarExistForMissing = decision(DOES_IF_MATCH_STAR_EXIST_FOR_MISSING,
             IF_MATCH_STAR_FUNC,
@@ -147,23 +138,23 @@ public class ResourceEngine {
             isMethodPut);
         Node<?> handleNotModified = handler(HANDLE_NOT_MODIFIED, 304, null);
         Node<?> ifNoneMatch     = decision(IF_NONE_MATCH,
-            createIsMethod("HEAD", "GET"),
+            DefaultResource.testRequestMethod("HEAD", "GET"),
             handleNotModified,
             handlePreconditionFailed);
         Node<?> putToExisting   = decision(PUT_TO_EXISTING,
-            createIsMethod("PUT"),
+            DefaultResource.testRequestMethod("PUT"),
             doesConflict,
             isMultipleRepresentations);
         Node<?> postToExisting   = decision(POST_TO_EXISTING,
-            createIsMethod("POST"),
+            DefaultResource.testRequestMethod("POST"),
             doesConflict,
             putToExisting);
         Node<?> isDeleteEnacted  = decision(DELETE_ENACTED, isRespondWithEntity, handleAccepted);
         Node<?> delete           = action(DELETE, isDeleteEnacted);
         Node<?> methodPatch      = decision(METHOD_PATCH,
-            createIsMethod("PATCH"), patch, postToExisting);
+            DefaultResource.testRequestMethod("PATCH"), patch, postToExisting);
         Node<?> methodDelete     = decision(METHOD_DELETE,
-            createIsMethod("DELETE"), delete, methodPatch);
+            DefaultResource.testRequestMethod("DELETE"), delete, methodPatch);
         Node<?> modifiedSince    = decision(MODIFIED_SINCE,
             context -> null,
             methodDelete,
@@ -258,7 +249,7 @@ public class ResourceEngine {
         Node<?> handleOptions = handler(HANDLE_OPTIONS, 200, null);
 
         Node<?> isOptions = decision(IS_OPTIONS,
-            createIsMethod("OPTIONS"),
+            DefaultResource.testRequestMethod("OPTIONS"),
             handleOptions,
             acceptExists);
 

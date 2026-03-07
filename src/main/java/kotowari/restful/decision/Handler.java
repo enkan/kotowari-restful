@@ -26,7 +26,7 @@ import java.util.function.Function;
  *
  * @author kawasima
  */
-public class Handler implements Node<ApiResponse> {
+public final class Handler implements Node<ApiResponse> {
     private static final Logger LOG = LoggerFactory.getLogger("kotowari.restful.decision");
 
     private final DecisionPoint point;
@@ -46,19 +46,16 @@ public class Handler implements Node<ApiResponse> {
 
     @Override
     public ApiResponse execute(RestContext context) {
-        LOG.debug("{}", point.name());
+        LOG.debug("{}", point);
         Object message = defaultMessage;
         Function<RestContext, ?> ftest = context.getResourceFunction(point);
         if (ftest != null) {
             Object fres = ftest.apply(context);
-            if (fres instanceof ApiResponse) {
-                return (ApiResponse) fres;
-            } else if (fres == null) {
-                message = null;
-            } else if (fres instanceof String) {
-                message = new SimpleMessage((String) fres);
-            } else {
-                message = fres;
+            switch (fres) {
+                case ApiResponse r -> { return r; }
+                case null -> { /* leave defaultMessage; context message takes priority below */ }
+                case String s -> message = new SimpleMessage(s);
+                default -> message = fres;
             }
         }
 

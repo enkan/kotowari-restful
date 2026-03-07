@@ -4,7 +4,7 @@ kotowari-restful is a RESTful API framework built on top of [enkan](https://gith
 
 ## Requirements
 
-- Java 21+
+- Java 25+
 - enkan/kotowari 0.12.0+
 
 ## Installation

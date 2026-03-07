@@ -11,12 +11,13 @@ import kotowari.restful.inject.parameter.RestContextInjector;
 import kotowari.restful.exception.MalformedBodyException;
 import kotowari.restful.resource.AllowedMethods;
 
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import java.util.*;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
 import static enkan.util.ReflectionUtils.tryReflection;
 
@@ -47,11 +48,13 @@ import static enkan.util.ReflectionUtils.tryReflection;
 public class ClassResource implements Resource {
     private static final ParameterInjector<?> BODY_SERIALIZABLE_INJECTOR = new BodySerializableInjector<>();
     private static final RestContextInjector REST_CONTEXT_INJECTOR = new RestContextInjector();
+    private static final MethodHandles.Lookup LOOKUP = MethodHandles.lookup();
+    private static final MethodType NO_ARG_INVOKER_TYPE = MethodType.methodType(Object.class);
 
     private final Map<DecisionPoint, Function<RestContext, ?>> functions;
     private final Resource parent;
-    private final Object instance;
     private final Function<RestContext, ?> methodAllowedFunc;
+    private final MethodHandles.Lookup resourceLookup;
 
     /**
      * Create argument objects by parameter injectors.
@@ -60,7 +63,7 @@ public class ClassResource implements Resource {
      * @param meta A metadata of the method
      * @return An object array for the method arguments
      */
-    protected Object[] createArguments(RestContext context, MethodMeta meta) {
+    private Object[] createArguments(RestContext context, MethodMeta meta) {
         Object[] arguments = new Object[meta.resolvers.length];
         for (int i = 0; i < meta.resolvers.length; i++) {
             arguments[i] = meta.resolvers[i].apply(context);
@@ -68,14 +71,22 @@ public class ClassResource implements Resource {
         return arguments;
     }
 
+    private static String normalizeHttpMethod(String method) {
+        if (method == null) return "";
+        return method.toUpperCase(Locale.US);
+    }
+
     private Set<String> parseAllowedMethods(Class<?> resourceClass) {
         AllowedMethods allowedMethods = resourceClass.getAnnotation(AllowedMethods.class);
         if (allowedMethods == null) {
             return Set.of("GET", "HEAD");
         } else {
-            return Arrays.stream(allowedMethods.value())
-                    .map(m -> m.toUpperCase(Locale.US))
-                    .collect(Collectors.toSet());
+            String[] methods = allowedMethods.value();
+            Set<String> normalized = new HashSet<>(methods.length);
+            for (String method : methods) {
+                normalized.add(normalizeHttpMethod(method));
+            }
+            return normalized;
         }
     }
 
@@ -93,41 +104,42 @@ public class ClassResource implements Resource {
                          ComponentInjector componentInjector,
                          List<ParameterInjector<?>> parameterInjectors,
                          BeansConverter beansConverter) {
-        instance = tryReflection(() -> componentInjector.inject(resourceClass.getConstructor().newInstance()));
+        Object instance = tryReflection(() -> componentInjector.inject(resourceClass.getConstructor().newInstance()));
         this.parent = parent;
+        this.resourceLookup = tryReflection(() -> MethodHandles.privateLookupIn(resourceClass, LOOKUP));
         Set<String> allowedMethods = parseAllowedMethods(resourceClass);
-        methodAllowedFunc = context -> allowedMethods.contains(context.getRequest().getRequestMethod().toUpperCase(Locale.US));
-        functions = new HashMap<>();
-        Map<DecisionPoint, List<Method>> resourceMethods = Arrays.stream(resourceClass.getMethods())
-            .filter(method -> tryReflection(() -> method.getAnnotation(Decision.class) != null))
-            .collect(Collectors.groupingBy(method -> {
-                Decision decision = method.getAnnotation(Decision.class);
-                return decision.value();
-            }, Collectors.toList()));
-
+        methodAllowedFunc = context -> allowedMethods.contains(normalizeHttpMethod(context.getRequest().getRequestMethod()));
+        functions = new EnumMap<>(DecisionPoint.class);
+        Map<DecisionPoint, List<Method>> resourceMethods = new EnumMap<>(DecisionPoint.class);
+        for (Method method : resourceClass.getMethods()) {
+            Decision decision = method.getAnnotation(Decision.class);
+            if (decision == null) continue;
+            resourceMethods.computeIfAbsent(decision.value(), ignored -> new ArrayList<>())
+                    .add(method);
+        }
 
         resourceMethods.forEach((point, methods) -> {
             Map<String, MethodMeta> httpMethodMap = new HashMap<>();
-            final AtomicReference<MethodMeta> fallbackMethod = new AtomicReference<>();
-            methods.forEach(method -> {
+            MethodMeta fallbackMethod = null;
+            for (Method method : methods) {
                 Decision decision = method.getAnnotation(Decision.class);
                 String[] targetMethods = decision.method();
+                MethodMeta meta = new MethodMeta(method, instance, parameterInjectors, beansConverter, resourceLookup);
                 if (targetMethods.length > 0) {
                     for(String m : targetMethods) {
-                        httpMethodMap.put(m, new MethodMeta(method, parameterInjectors, beansConverter));
+                        httpMethodMap.put(normalizeHttpMethod(m), meta);
                     }
                 } else {
-                    fallbackMethod.set(new MethodMeta(method, parameterInjectors, beansConverter));
+                    fallbackMethod = meta;
                 }
-            });
+            }
+            final MethodMeta fallbackMeta = fallbackMethod;
 
             functions.put(point, context -> {
-                MethodMeta meta = httpMethodMap.getOrDefault(
-                    context.getRequest().getRequestMethod().toUpperCase(Locale.US),
-                    fallbackMethod.get());
+                MethodMeta meta = httpMethodMap.getOrDefault(normalizeHttpMethod(context.getRequest().getRequestMethod()),
+                        fallbackMeta);
                 if (meta != null) {
-                    Object[] arguments = createArguments(context, meta);
-                    return tryReflection(() -> meta.method.invoke(instance, arguments));
+                    return invokeMethod(context, meta);
                 } else {
                     return parent.getFunction(point).apply(context);
                 }
@@ -143,6 +155,23 @@ public class ClassResource implements Resource {
             return methodAllowedFunc;
         }
         return parent.getFunction(point);
+    }
+
+    private Object invokeMethod(RestContext context, MethodMeta meta) {
+        try {
+            if (meta.resolvers.length == 0) {
+                return meta.noArgInvoker.invokeExact();
+            }
+            Object[] arguments = createArguments(context, meta);
+            return meta.argInvoker.invokeExact(arguments);
+        } catch (Throwable t) {
+            switch (t) {
+                case Error error -> throw error;
+                case RuntimeException runtimeException -> throw runtimeException;
+                case Exception exception -> throw new RuntimeException(exception);
+                case null, default -> throw new InternalError(t);
+            }
+        }
     }
 
     @SuppressWarnings("unchecked")
@@ -191,13 +220,27 @@ public class ClassResource implements Resource {
         return resolvers;
     }
 
-    private static class MethodMeta {
-        final Method method;
+    protected static class MethodMeta {
         final Function<RestContext, Object>[] resolvers;
+        final MethodHandle noArgInvoker;
+        final MethodHandle argInvoker;
 
-        MethodMeta(Method method, List<ParameterInjector<?>> parameterInjectors, BeansConverter beansConverter) {
-            this.method = method;
+        MethodMeta(Method method,
+                   Object instance,
+                   List<ParameterInjector<?>> parameterInjectors,
+                   BeansConverter beansConverter,
+                   MethodHandles.Lookup resourceLookup) {
             this.resolvers = buildResolvers(method.getParameters(), parameterInjectors, beansConverter);
+            MethodHandle boundMethod = tryReflection(() -> resourceLookup.unreflect(method)).bindTo(instance);
+            if (resolvers.length == 0) {
+                this.noArgInvoker = boundMethod.asType(NO_ARG_INVOKER_TYPE);
+                this.argInvoker = null;
+            } else {
+                this.noArgInvoker = null;
+                this.argInvoker = boundMethod
+                        .asSpreader(Object[].class, resolvers.length)
+                        .asType(MethodType.methodType(Object.class, Object[].class));
+            }
         }
     }
 }

@@ -32,7 +32,7 @@ import java.util.function.Function;
  *
  * @author kawasima
  */
-public class Decision implements Node<Node<?>> {
+public final class Decision implements Node<Node<?>> {
     private static final Logger LOG = LoggerFactory.getLogger("kotowari.restful.decision");
 
     private final DecisionPoint point;
@@ -57,27 +57,20 @@ public class Decision implements Node<Node<?>> {
     }
 
     public Node<?> execute(RestContext context) {
-        LOG.debug("{}", point.name());
+        LOG.debug("{}", point);
         Function<RestContext, ?> ftest = context.getResourceFunction(point);
         if (ftest == null) {
             ftest = test;
         }
         if (ftest == null) throw new DecisionGraphException(point.name());
         Object fres = ftest.apply(context);
-        boolean result;
-        if (fres == null) {
-            result = false;
-        } else if (fres instanceof Boolean) {
-            result = (Boolean) fres;
-        } else if (fres instanceof Problem) {
-            context.setMessage(fres);
-            result = true;
-        } else if (fres instanceof String) {
-            context.setMessage(new SimpleMessage((String) fres));
-            result = true;
-        } else {
-            result = true;
-        }
+        boolean result = switch (fres) {
+            case null -> false;
+            case Boolean b -> b;
+            case Problem p -> { context.setMessage(p); yield true; }
+            case String s -> { context.setMessage(new SimpleMessage(s)); yield true; }
+            default -> true;
+        };
         return result ? thenNode : elseNode;
     }
 
