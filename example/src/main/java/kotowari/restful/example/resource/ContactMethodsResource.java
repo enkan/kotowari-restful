@@ -1,7 +1,6 @@
 package kotowari.restful.example.resource;
 
 import enkan.collection.Parameters;
-import jakarta.transaction.Transactional;
 import kotowari.restful.Decision;
 import kotowari.restful.data.ContextKey;
 import kotowari.restful.data.Problem;
@@ -110,17 +109,18 @@ public class ContactMethodsResource {
      * @param context  the current request context
      * @return {@code true} on success; a {@link Problem} on business rule violation
      */
-    @Transactional
     @Decision(POST)
     public Object add(CustomerId id, DSLContext dsl, RestContext context) {
         Customer customer = context.get(CUSTOMER).orElseThrow();
         ContactMethod toAdd = context.get(CONTACT_METHOD).orElseThrow();
         return switch (ADD_SECONDARY.apply(customer, toAdd)) {
             case Ok<Customer> ok -> {
-                CustomerRepository repo = new CustomerRepository(dsl);
-                repo.replaceContactMethods(id.value(), ok.value());
-                CustomerWithIds cwi = repo.findByIdWithIds(id.value()).orElseThrow();
-                context.put(CUSTOMER_WITH_IDS, cwi);
+                dsl.transaction(cfg -> {
+                    CustomerRepository repo = new CustomerRepository(org.jooq.impl.DSL.using(cfg));
+                    repo.replaceContactMethods(id.value(), ok.value());
+                    CustomerWithIds cwi = repo.findByIdWithIds(id.value()).orElseThrow();
+                    context.put(CUSTOMER_WITH_IDS, cwi);
+                });
                 yield true;
             }
             case Err<Customer> err -> {

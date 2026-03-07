@@ -11,7 +11,6 @@ import kotowari.restful.data.RestContext;
 import kotowari.restful.example.data.Address;
 
 import jakarta.inject.Inject;
-import jakarta.transaction.Transactional;
 import jakarta.validation.ConstraintViolation;
 import org.jooq.DSLContext;
 
@@ -79,22 +78,23 @@ public class AddressesResource {
                 .map(Address::fromRecord);
     }
 
-    @Transactional
     @Decision(POST)
     public boolean create(Address body, DSLContext dsl, RestContext context) {
-        var rec = dsl.insertInto(table("address"),
-                        COUNTRY_CODE, ZIP, CITY, STREET, ADDITIONAL, CARE_OF)
-                .values(body.countryCode(), body.zip(), body.city(),
-                        body.street(), body.additional(), body.careOf())
-                .returningResult(ID)
-                .fetchOne();
-
-        Address created = new Address(
-                rec.get(ID),
-                body.careOf(), body.street(), body.additional(),
-                body.city(), body.zip(), body.countryCode()
-        );
-        context.put(ADDRESS, created);
+        dsl.transaction(cfg -> {
+            var rec = org.jooq.impl.DSL.using(cfg)
+                    .insertInto(table("address"),
+                            COUNTRY_CODE, ZIP, CITY, STREET, ADDITIONAL, CARE_OF)
+                    .values(body.countryCode(), body.zip(), body.city(),
+                            body.street(), body.additional(), body.careOf())
+                    .returningResult(ID)
+                    .fetchOne();
+            Address created = new Address(
+                    rec.get(ID),
+                    body.careOf(), body.street(), body.additional(),
+                    body.city(), body.zip(), body.countryCode()
+            );
+            context.put(ADDRESS, created);
+        });
         return true;
     }
 

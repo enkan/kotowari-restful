@@ -1,11 +1,23 @@
 # kotowari-restful
 
-kotowari-restful is a RESTful API framework built on top of [enkan](https://github.com/enkan/enkan) / [kotowari](https://github.com/enkan/kotowari). It models HTTP semantics as a decision graph, automatically returning RFC-compliant status codes without boilerplate.
+[![Maven Central](https://img.shields.io/maven-central/v/net.unit8.enkan/kotowari-restful.svg)](https://central.sonatype.com/artifact/net.unit8.enkan/kotowari-restful)
+[![License](https://img.shields.io/badge/License-EPL%202.0-blue.svg)](https://www.eclipse.org/legal/epl-2.0/)
+[![Java](https://img.shields.io/badge/Java-25%2B-orange.svg)](https://jdk.java.net/)
+
+A declarative RESTful API framework for Java, built on [enkan](https://github.com/enkan/enkan) / [kotowari](https://github.com/enkan/enkan).
+
+## Why kotowari-restful?
+
+- **Decision graph, not boilerplate** — Inspired by [Liberator](https://clojure-liberator.github.io/liberator/), HTTP semantics are modeled as a fixed decision graph. You only override the points you care about; the framework handles correct status codes, content negotiation, conditional requests, and error responses automatically.
+- **RFC-compliant by default** — 200, 201, 204, 301, 304, 400, 401, 403, 404, 405, 409, 412, 422, 500... all produced from the same graph without manual if/else chains.
+- **Type-safe validation with Raoh** — Decode and validate request input using [Raoh](https://github.com/kawasima/raoh) decoders. Pattern matching on `Result<T>` eliminates stringly-typed error handling.
+- **Zero-reflection at runtime** — Method handles and pre-built argument resolvers are compiled at startup. No per-request reflection.
+- **RFC 9457 Problem Details** — Validation errors and exceptions are returned as structured `application/problem+json` responses out of the box.
 
 ## Requirements
 
 - Java 25+
-- enkan/kotowari 0.12.0+
+- enkan/kotowari 0.13.0+
 
 ## Installation
 
@@ -15,7 +27,7 @@ Add the following dependency to your `pom.xml`:
 <dependency>
     <groupId>net.unit8.enkan</groupId>
     <artifactId>kotowari-restful</artifactId>
-    <version>0.12.0</version>
+    <version>0.13.0</version>
 </dependency>
 ```
 
@@ -125,17 +137,29 @@ Method parameters on `@Decision` methods are injected automatically:
 | `Session` | The session |
 | `Principal` | The authenticated user |
 | Any POJO | Deserialized request body (JSON → POJO) |
-| Type stored via `context.putValue()` | Value previously stored in the context |
+| Type stored via `context.put(key, value)` | Value previously stored in the context |
 
-Use `context.putValue()` to pass objects computed in an earlier decision point to a later one:
+Use `ContextKey<T>` and `context.put()` to pass objects computed in an earlier decision point to a later one.
+
+> **Note:** Type-based injection resolves by `Class<?>`, so if the same type appears as both a request body parameter and a context-stored value, the context value shadows the body. When you need both in the same method, accept `RestContext` and call `context.get(KEY)` explicitly for the context-stored value.
 
 ```java
+static final ContextKey<SearchParams> SEARCH_PARAMS = ContextKey.of(SearchParams.class);
+
 @Decision(value = MALFORMED, method = {"GET"})
 public Problem validateSearch(Parameters params, RestContext context) {
-    SearchParams searchParams = converter.createFrom(params, SearchParams.class);
-    context.putValue(searchParams);  // available in downstream decision points
-    Set<ConstraintViolation<SearchParams>> violations = validator.validate(searchParams);
-    return violations.isEmpty() ? null : Problem.fromViolations(violations);
+    return switch (SEARCH_PARAMS_DECODER.decode(params)) {
+        case Ok<SearchParams> ok -> {
+            context.put(SEARCH_PARAMS, ok.value());
+            yield null;
+        }
+        case Err<SearchParams> err -> {
+            List<Problem.Violation> violations = err.issues().asList().stream()
+                    .map(issue -> new Problem.Violation(issue.path().toString(), issue.code(), issue.message()))
+                    .toList();
+            yield Problem.fromViolationList(violations);
+        }
+    };
 }
 
 @Decision(HANDLE_OK)
@@ -146,16 +170,31 @@ public List<Article> list(SearchParams params) {  // injected from context
 
 ## Validation and Error Responses
 
-Use `BeansValidator` to validate beans, and convert violations to a Problem JSON response with `Problem.fromViolations()`.
+Use [Raoh](https://github.com/kawasima/raoh) decoders to decode and validate request input.
+A `Decoder` returns `Result<T>` — either `Ok<T>` (success) or `Err<T>` (failure with issues).
+Use a `switch` expression to handle both cases and produce a `Problem` on error:
 
 ```java
-@Inject
-private BeansValidator validator;
+// Define a decoder once as a constant
+static final JsonDecoder<Article> ARTICLE_DECODER = combine(
+        field("title", string().trim().nonBlank().maxLength(200).map(String::new)),
+        field("publishedAt", isoLocalDate())
+).apply(Article::new)::decode;
 
 @Decision(value = MALFORMED, method = {"POST"})
-public Problem validatePost(Article article) {
-    Set<ConstraintViolation<Article>> violations = validator.validate(article);
-    return violations.isEmpty() ? null : Problem.fromViolations(violations);
+public Problem validatePost(JsonNode body, RestContext context) {
+    return switch (ARTICLE_DECODER.decode(body)) {
+        case Ok<Article> ok -> {
+            context.put(ARTICLE, ok.value());
+            yield null;
+        }
+        case Err<Article> err -> {
+            List<Problem.Violation> violations = err.issues().asList().stream()
+                    .map(issue -> new Problem.Violation(issue.path().toString(), issue.code(), issue.message()))
+                    .toList();
+            yield Problem.fromViolationList(violations);
+        }
+    };
 }
 ```
 
@@ -186,50 +225,78 @@ public class ArticlesResource {
 
 ## Full Example
 
+The following example shows a collection resource that supports paginated listing (`GET`) and creation (`POST`).
+Input is decoded and validated using Raoh decoders; results are persisted via jOOQ with explicit transactions.
+
 ```java
 @AllowedMethods({"GET", "POST"})
-public class AddressesResource {
+public class ArticlesResource {
 
-    @Inject
-    private BeansValidator validator;
+    static final ContextKey<ArticleSearchParams> SEARCH_PARAMS = ContextKey.of(ArticleSearchParams.class);
+    static final ContextKey<Article> ARTICLE = ContextKey.of(Article.class);
 
-    @Inject
-    private BeansConverter beansConverter;
+    // Raoh decoder: validates and maps JSON → Article
+    private static final JsonDecoder<Article> ARTICLE_DECODER = combine(
+            field("title", string().trim().nonBlank().maxLength(200).map(String::new)),
+            field("publishedAt", isoLocalDate())
+    ).apply(Article::new)::decode;
 
     @Decision(value = MALFORMED, method = {"GET"})
     public Problem validateGet(Parameters params, RestContext context) {
-        AddressSearchParams searchParams = beansConverter.createFrom(params, AddressSearchParams.class);
-        context.putValue(searchParams);
-        Set<ConstraintViolation<AddressSearchParams>> violations = validator.validate(searchParams);
-        return violations.isEmpty() ? null : Problem.fromViolations(violations);
+        return switch (SEARCH_PARAMS_DECODER.decode(params)) {
+            case Ok<ArticleSearchParams> ok -> {
+                context.put(SEARCH_PARAMS, ok.value());
+                yield null;
+            }
+            case Err<ArticleSearchParams> err -> {
+                List<Problem.Violation> violations = err.issues().asList().stream()
+                        .map(issue -> new Problem.Violation(issue.path().toString(), issue.code(), issue.message()))
+                        .toList();
+                yield Problem.fromViolationList(violations);
+            }
+        };
     }
 
     @Decision(value = MALFORMED, method = {"POST"})
-    public Problem validatePost(Address address) {
-        Set<ConstraintViolation<Address>> violations = validator.validate(address);
-        return violations.isEmpty() ? null : Problem.fromViolations(violations);
+    public Problem validatePost(JsonNode body, RestContext context) {
+        return switch (ARTICLE_DECODER.decode(body)) {
+            case Ok<Article> ok -> {
+                context.put(ARTICLE, ok.value());
+                yield null;
+            }
+            case Err<Article> err -> {
+                List<Problem.Violation> violations = err.issues().asList().stream()
+                        .map(issue -> new Problem.Violation(issue.path().toString(), issue.code(), issue.message()))
+                        .toList();
+                yield Problem.fromViolationList(violations);
+            }
+        };
     }
 
     @Decision(HANDLE_OK)
-    public List<Address> list(AddressSearchParams params, EntityManager em) {
-        CriteriaBuilder cb = em.getCriteriaBuilder();
-        CriteriaQuery<Address> query = cb.createQuery(Address.class);
-        query.select(query.from(Address.class));
-        return em.createQuery(query)
-                .setFirstResult(params.getOffset())
-                .setMaxResults(params.getLimit())
-                .getResultList();
+    public List<Article> list(ArticleSearchParams params, DSLContext dsl) {
+        return dsl.selectFrom(ARTICLES)
+                .offset(params.getOffset())
+                .limit(params.getLimit())
+                .fetchInto(Article.class);
     }
 
     @Decision(POST)
-    public void create(Address address, EntityManager em, RestContext context) {
-        em.persist(address);
-        context.putValue(address);  // makes the persisted entity available to HANDLE_CREATED
+    public boolean create(Article article, DSLContext dsl, RestContext context) {
+        dsl.transaction(cfg -> {
+            var rec = DSL.using(cfg)
+                    .insertInto(ARTICLES, ARTICLES.TITLE, ARTICLES.PUBLISHED_AT)
+                    .values(article.title(), article.publishedAt())
+                    .returningResult(ARTICLES.ID)
+                    .fetchOne();
+            context.put(ARTICLE, new Article(rec.get(ARTICLES.ID), article.title(), article.publishedAt()));
+        });
+        return true;
     }
 
     @Decision(HANDLE_CREATED)
-    public Address handleCreated(Address address) {
-        return address;
+    public Article handleCreated(Article article) {
+        return article;
     }
 }
 ```

@@ -1,6 +1,7 @@
 package kotowari.restful;
 
 import enkan.data.HttpRequest;
+import enkan.exception.UnrecoverableException;
 import kotowari.restful.data.ApiResponse;
 import kotowari.restful.data.DefaultResource;
 import kotowari.restful.data.Problem;
@@ -61,6 +62,8 @@ public class ResourceEngine {
                     case Handler h -> { return h.execute(context); }
                 }
             }
+        } catch(UnrecoverableException e) {
+            throw e;
         } catch(MalformedBodyException e) {
             LOG.debug("Malformed request body", e);
             ApiResponse response = new ApiResponse();

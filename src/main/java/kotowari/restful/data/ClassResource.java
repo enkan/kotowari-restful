@@ -104,7 +104,15 @@ public class ClassResource implements Resource {
                          ComponentInjector componentInjector,
                          List<ParameterInjector<?>> parameterInjectors,
                          BeansConverter beansConverter) {
-        Object instance = tryReflection(() -> componentInjector.inject(resourceClass.getConstructor().newInstance()));
+        Object instance;
+        try {
+            instance = componentInjector.inject(resourceClass.getConstructor().newInstance());
+        } catch (NoSuchMethodException e) {
+            throw new enkan.exception.MisconfigurationException(
+                    "kotowari_restful.NO_DEFAULT_CONSTRUCTOR", resourceClass.getName(), e);
+        } catch (ReflectiveOperationException e) {
+            throw new RuntimeException(e);
+        }
         this.parent = parent;
         this.resourceLookup = tryReflection(() -> MethodHandles.privateLookupIn(resourceClass, LOOKUP));
         Set<String> allowedMethods = parseAllowedMethods(resourceClass);
@@ -169,7 +177,7 @@ public class ClassResource implements Resource {
                 case Error error -> throw error;
                 case RuntimeException runtimeException -> throw runtimeException;
                 case Exception exception -> throw new RuntimeException(exception);
-                case null, default -> throw new InternalError(t);
+                default -> throw new InternalError(t);
             }
         }
     }
@@ -211,6 +219,10 @@ public class ClassResource implements Resource {
                                 return beansConverter.createFrom(deserializedBody, type);
                             } catch (IllegalArgumentException e) {
                                 throw new MalformedBodyException(type, e);
+                            } catch (Exception e) {
+                                throw new enkan.exception.MisconfigurationException(
+                                        "kotowari_restful.UNCONVERTIBLE_BODY_PARAMETER",
+                                        deserializedBody.getClass().getName(), type.getName(), e);
                             }
                         }
                     };

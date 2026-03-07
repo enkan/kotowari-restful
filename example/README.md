@@ -288,11 +288,9 @@ Requests are processed through the following middleware chain (outermost to inne
 3. `NestedParamsMiddleware` -- dot-notation key expansion
 4. `ContentNegotiationMiddleware` -- Accept header validation (`application/json` only)
 5. `RoutingMiddleware` -- URL pattern matching
-6. `ResourceMethodResolverMiddleware` -- resolves the resource method for SerDes
-7. `JooqDslContextMiddleware` -- provides jOOQ DSLContext
-8. `JooqTransactionMiddleware` -- `@Transactional` support
-9. `SerDesMiddleware` -- JSON deserialization / serialization
-10. `ResourceInvokerMiddleware` -- executes the decision graph
+6. `JooqDslContextMiddleware` -- provides jOOQ DSLContext
+7. `SerDesMiddleware` -- JSON deserialization / serialization
+8. `ResourceInvokerMiddleware` -- executes the decision graph
 
 ### Component Wiring
 

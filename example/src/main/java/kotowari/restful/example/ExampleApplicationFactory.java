@@ -10,7 +10,6 @@ import enkan.middleware.MultipartParamsMiddleware;
 import enkan.middleware.NestedParamsMiddleware;
 import enkan.middleware.ParamsMiddleware;
 import enkan.middleware.jooq.JooqDslContextMiddleware;
-import enkan.middleware.jooq.JooqTransactionMiddleware;
 import enkan.system.inject.ComponentInjector;
 import kotowari.inject.ParameterInjector;
 import kotowari.inject.parameter.*;
@@ -24,7 +23,6 @@ import kotowari.restful.example.resource.ContactMethodResource;
 import kotowari.restful.example.resource.ContactMethodsResource;
 import kotowari.restful.example.resource.CustomerResource;
 import kotowari.restful.example.resource.CustomersResource;
-import kotowari.restful.middleware.ResourceMethodResolverMiddleware;
 import kotowari.restful.middleware.ResourceInvokerMiddleware;
 import kotowari.routing.Routes;
 
@@ -80,9 +78,7 @@ public class ExampleApplicationFactory implements ApplicationFactory<HttpRequest
                 .set(ContentNegotiationMiddleware::setAllowedTypes, Set.of("application/json"))
                 .build());
         app.use(new RoutingMiddleware(routes));
-        app.use(new ResourceMethodResolverMiddleware<>());
         app.use(new JooqDslContextMiddleware<>());
-        app.use(new JooqTransactionMiddleware<>());
         app.use(new SerDesMiddleware<>());
         app.use(builder(new ResourceInvokerMiddleware<>(injector))
                 .set(ResourceInvokerMiddleware::setParameterInjectors, parameterInjectors)

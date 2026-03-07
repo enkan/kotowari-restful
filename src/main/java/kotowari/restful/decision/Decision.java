@@ -4,7 +4,7 @@ import kotowari.restful.DecisionPoint;
 import kotowari.restful.data.Problem;
 import kotowari.restful.data.RestContext;
 import kotowari.restful.data.SimpleMessage;
-import kotowari.restful.exception.DecisionGraphException;
+import enkan.exception.MisconfigurationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -62,7 +62,8 @@ public final class Decision implements Node<Node<?>> {
         if (ftest == null) {
             ftest = test;
         }
-        if (ftest == null) throw new DecisionGraphException(point.name());
+        if (ftest == null) throw new MisconfigurationException(
+                "kotowari_restful.MISSING_DECISION_FUNCTION", point.name());
         Object fres = ftest.apply(context);
         boolean result = switch (fres) {
             case null -> false;

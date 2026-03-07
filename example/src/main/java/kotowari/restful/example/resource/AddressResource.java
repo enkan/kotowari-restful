@@ -6,7 +6,6 @@ import kotowari.restful.data.ContextKey;
 import kotowari.restful.data.Problem;
 import kotowari.restful.data.RestContext;
 import kotowari.restful.example.data.Address;
-import jakarta.transaction.Transactional;
 import kotowari.restful.resource.AllowedMethods;
 
 import org.jooq.DSLContext;
@@ -62,19 +61,21 @@ public class AddressResource {
         return address;
     }
 
-    @Transactional
     @Decision(PUT)
-    public void update(Address body, Address address, DSLContext dsl, RestContext context) {
-        dsl.update(table("address"))
-                .set(CARE_OF, body.careOf())
-                .set(STREET, body.street())
-                .set(ADDITIONAL, body.additional())
-                .set(CITY, body.city())
-                .set(ZIP, body.zip())
-                .set(COUNTRY_CODE, body.countryCode())
-                .where(ID.eq(address.id()))
-                .execute();
-
+    public void update(Address body, DSLContext dsl, RestContext context) {
+        Address address = context.get(ADDRESS).orElseThrow();
+        dsl.transaction(cfg -> {
+            org.jooq.impl.DSL.using(cfg)
+                    .update(table("address"))
+                    .set(CARE_OF, body.careOf())
+                    .set(STREET, body.street())
+                    .set(ADDITIONAL, body.additional())
+                    .set(CITY, body.city())
+                    .set(ZIP, body.zip())
+                    .set(COUNTRY_CODE, body.countryCode())
+                    .where(ID.eq(address.id()))
+                    .execute();
+        });
         Address updated = new Address(
                 address.id(), body.careOf(), body.street(), body.additional(),
                 body.city(), body.zip(), body.countryCode()
@@ -92,11 +93,12 @@ public class AddressResource {
         return true;
     }
 
-    @Transactional
     @Decision(DELETE)
     public void destroy(Address address, DSLContext dsl) {
-        dsl.deleteFrom(table("address"))
-                .where(ID.eq(address.id()))
-                .execute();
+        dsl.transaction(cfg ->
+                org.jooq.impl.DSL.using(cfg)
+                        .deleteFrom(table("address"))
+                        .where(ID.eq(address.id()))
+                        .execute());
     }
 }

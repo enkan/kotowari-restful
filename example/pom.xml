@@ -12,10 +12,10 @@
 
     <properties>
         <java.version>25</java.version>
-        <enkan.version>0.13.0-SNAPSHOT</enkan.version>
+        <enkan.version>0.13.0</enkan.version>
         <jackson.version>3.1.0</jackson.version>
         <jackson.jaxrs.version>3.1.0</jackson.jaxrs.version>
-        <raoh.version>0.3.0-SNAPSHOT</raoh.version>
+        <raoh.version>0.3.0</raoh.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 

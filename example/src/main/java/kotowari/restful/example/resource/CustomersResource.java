@@ -7,7 +7,6 @@ import kotowari.restful.data.RestContext;
 import kotowari.restful.example.dao.CustomerRepository;
 import kotowari.restful.example.data.*;
 import kotowari.restful.example.data.CustomerWithIds;
-import jakarta.transaction.Transactional;
 import kotowari.restful.resource.AllowedMethods;
 import net.unit8.raoh.Err;
 import net.unit8.raoh.Ok;
@@ -90,14 +89,15 @@ public class CustomersResource {
      * @param context  the current request context
      * @return {@code true} to indicate the POST action succeeded
      */
-    @Transactional
     @Decision(POST)
     public boolean create(Customer customer, DSLContext dsl, RestContext context) {
-        CustomerRepository repo = new CustomerRepository(dsl);
-        CustomerId id = repo.insert(customer);
-        CustomerWithIds cwi = repo.findByIdWithIds(id.value()).orElseThrow();
-        context.put(CUSTOMER_ID, id);
-        context.put(CUSTOMER_WITH_IDS, cwi);
+        dsl.transaction(cfg -> {
+            CustomerRepository repo = new CustomerRepository(org.jooq.impl.DSL.using(cfg));
+            CustomerId id = repo.insert(customer);
+            CustomerWithIds cwi = repo.findByIdWithIds(id.value()).orElseThrow();
+            context.put(CUSTOMER_ID, id);
+            context.put(CUSTOMER_WITH_IDS, cwi);
+        });
         return true;
     }
 

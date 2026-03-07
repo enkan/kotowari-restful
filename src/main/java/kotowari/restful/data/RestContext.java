@@ -30,7 +30,11 @@ import java.util.function.Function;
  *
  * <p>A secondary type-based index is maintained so that the parameter injection
  * mechanism in {@link ClassResource} can resolve values by their declared type
- * without knowing the specific {@link ContextKey}.
+ * without knowing the specific {@link ContextKey}. If multiple keys share the
+ * same type, the last {@link #put} wins in the type index. When a method
+ * parameter's type matches both a context-stored value and the deserialized
+ * request body, the context value takes precedence. In such cases, accept
+ * {@code RestContext} as a parameter and use {@link #get(ContextKey)} explicitly.
  *
  * @author kawasima
  */
@@ -113,10 +117,10 @@ public class RestContext {
      *
      * @param <T>   the value type
      * @param key   the context key
-     * @param value the value to store (must not be {@code null})
-     * @throws NullPointerException if {@code key} or {@code value} is {@code null}
+     * @param value the value to store (ignored if {@code null})
      */
     public <T> void put(ContextKey<T> key, T value) {
+        if (value == null) return;
         values.put(key, value);
         typeIndex.put(key.type(), value);
     }

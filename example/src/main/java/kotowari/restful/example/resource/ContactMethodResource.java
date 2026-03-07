@@ -1,7 +1,6 @@
 package kotowari.restful.example.resource;
 
 import enkan.collection.Parameters;
-import jakarta.transaction.Transactional;
 import kotowari.restful.Decision;
 import kotowari.restful.data.ContextKey;
 import kotowari.restful.data.Problem;
@@ -79,15 +78,16 @@ public class ContactMethodResource {
      * @param context  the current request context
      * @return {@code true} on success; a {@link Problem} on business rule violation
      */
-    @Transactional
     @Decision(DELETE)
     public Object delete(CustomerId id, DSLContext dsl, RestContext context) {
         Customer customer = context.get(CUSTOMER).orElseThrow();
         ContactMethod target = context.get(CONTACT_METHOD).orElseThrow();
         return switch (REMOVE.apply(customer, target)) {
             case Ok<Customer> ok -> {
-                CustomerRepository repo = new CustomerRepository(dsl);
-                repo.replaceContactMethods(id.value(), ok.value());
+                dsl.transaction(cfg -> {
+                    CustomerRepository repo = new CustomerRepository(org.jooq.impl.DSL.using(cfg));
+                    repo.replaceContactMethods(id.value(), ok.value());
+                });
                 yield true;
             }
             case Err<Customer> err -> {
