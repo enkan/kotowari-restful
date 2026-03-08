@@ -144,17 +144,7 @@ public class ResourceEngine {
                         return result;
                     };
                     case MOVED_PERMANENTLY, MOVED_TEMPORARILY, POST_REDIRECT ->
-                        original == null ? null : ctx -> {
-                            Object result = original.apply(ctx);
-                            if (result instanceof String location) {
-                                ctx.addHeader("Location", location);
-                                return true;
-                            } else if (result instanceof URI uri) {
-                                ctx.addHeader("Location", uri.toString());
-                                return true;
-                            }
-                            return result;
-                        };
+                        original == null ? null : redirectHandler(original);
                     default -> original;
                 };
             }
@@ -163,6 +153,22 @@ public class ResourceEngine {
             public Set<String> getAllowedMethods() {
                 return resource.getAllowedMethods();
             }
+        };
+    }
+
+    private static Function<RestContext, ?> redirectHandler(Function<RestContext, ?> original) {
+        return ctx -> {
+            Object result = original.apply(ctx);
+            String location = switch (result) {
+                case String s -> s;
+                case URI uri -> uri.toString();
+                default -> null;
+            };
+            if (location != null) {
+                ctx.addHeader("Location", location);
+                return true;
+            }
+            return result;
         };
     }
 
