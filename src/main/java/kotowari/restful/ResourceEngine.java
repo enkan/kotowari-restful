@@ -92,7 +92,8 @@ public class ResourceEngine {
     public ApiResponse run(Resource resource, HttpRequest request) {
         RestContext context = new RestContext(resource, request);
         ApiResponse response = runDecisionGraph(context);
-        if (response.getStatus() == 405 || response.getStatus() == 200 && "OPTIONS".equalsIgnoreCase(request.getRequestMethod())) {
+        int status = response.getStatus();
+        if (status == 405 || ("OPTIONS".equalsIgnoreCase(request.getRequestMethod()) && status >= 200 && status < 300)) {
             response.getHeaders().put("Allow", allowHeaderValue(resource.getAllowedMethods()));
         }
         return response;
@@ -100,7 +101,7 @@ public class ResourceEngine {
 
     private static String allowHeaderValue(Set<String> methods) {
         StringJoiner joiner = new StringJoiner(", ");
-        for (String m : methods) joiner.add(m);
+        methods.stream().sorted().forEach(joiner::add);
         return joiner.toString();
     }
 
