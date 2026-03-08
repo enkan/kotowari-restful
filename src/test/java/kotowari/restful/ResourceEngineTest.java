@@ -90,4 +90,49 @@ class ResourceEngineTest {
         assertThat(response.getStatus()).isEqualTo(200);
         assertThat(response.getHeaders().get("Allow")).isEqualTo("GET, HEAD, POST");
     }
+
+    @Test
+    void headResponseHasNoBody() {
+        DefaultResource resource = new DefaultResource();
+        HttpRequest request = builder(new DefaultHttpRequest())
+                .set(HttpRequest::setRequestMethod, "HEAD")
+                .set(HttpRequest::setContentType, "application/json")
+                .set(HttpRequest::setHeaders, Headers.empty())
+                .build();
+
+        ApiResponse response = resourceEngine.run(resource, request);
+
+        assertThat(response.getStatus()).isEqualTo(200);
+        assertThat(response.getBody()).isNull();
+    }
+
+    @Test
+    void notModifiedResponseHasNoBody() {
+        // Resource that returns 304 by claiming nothing has been modified since
+        DefaultResource resource = new DefaultResource() {
+            @Override
+            public java.util.function.Function<kotowari.restful.data.RestContext, ?> getFunction(kotowari.restful.DecisionPoint point) {
+                if (point == kotowari.restful.DecisionPoint.IF_NONE_MATCH_EXISTS) {
+                    return ctx -> true;
+                }
+                if (point == kotowari.restful.DecisionPoint.IF_NONE_MATCH_STAR) {
+                    return ctx -> false;
+                }
+                if (point == kotowari.restful.DecisionPoint.ETAG_MATCHES_FOR_IF_NONE) {
+                    return ctx -> true;
+                }
+                return super.getFunction(point);
+            }
+        };
+        HttpRequest request = builder(new DefaultHttpRequest())
+                .set(HttpRequest::setRequestMethod, "GET")
+                .set(HttpRequest::setContentType, "application/json")
+                .set(HttpRequest::setHeaders, Headers.of("if-none-match", "\"abc\""))
+                .build();
+
+        ApiResponse response = resourceEngine.run(resource, request);
+
+        assertThat(response.getStatus()).isEqualTo(304);
+        assertThat(response.getBody()).isNull();
+    }
 }
