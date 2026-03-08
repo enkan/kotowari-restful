@@ -65,7 +65,8 @@ public class TraceViewerEndpoint implements Endpoint<HttpRequest, HttpResponse> 
         }
         Optional<RequestTrace> trace = traceStore.get(id);
         if (trace.isEmpty()) {
-            return contentType(response("Trace not found: " + id), "text/html; charset=UTF-8");
+            String safeId = id.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+            return contentType(response("Trace not found: " + safeId), "text/html; charset=UTF-8");
         }
         return contentType(response(renderer.render(id, trace.get())), "text/html; charset=UTF-8");
     }

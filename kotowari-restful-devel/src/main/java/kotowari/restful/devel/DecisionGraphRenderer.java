@@ -38,10 +38,17 @@ public class DecisionGraphRenderer {
      * @param trace   the request trace to visualize
      * @return the HTML page as a string
      */
+    private static String escapeHtml(String s) {
+        return s.replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+                .replace("\"", "&quot;");
+    }
+
     public String render(String traceId, RequestTrace trace) {
         List<TraceEntry> entries = trace.getEntries();
         StringBuilder js = buildJsArray(entries);
-        return buildHtml(traceId, js.toString());
+        return buildHtml(escapeHtml(traceId), js.toString());
     }
 
     private StringBuilder buildJsArray(List<TraceEntry> entries) {
@@ -65,18 +72,18 @@ public class DecisionGraphRenderer {
                 <html>
                 <head>
                   <meta charset="UTF-8">
-                  <title>Decision Graph Trace #%s</title>
+                  <title>Decision Graph Trace #%1$s</title>
                   <style>
                     body { font-family: sans-serif; margin: 1em; }
                     #graph { width: 100%%; border: 1px solid #ccc; }
                   </style>
                 </head>
                 <body>
-                  <h1>Decision Graph Trace <code>%s</code></h1>
+                  <h1>Decision Graph Trace <code>%1$s</code></h1>
                   <object id="graph" type="image/svg+xml" data="/_dev/trace.svg"
                           width="100%%" style="min-height:600px;"></object>
                   <script>
-                  const visited = %s;
+                  const visited = %2$s;
                   function colorGraph() {
                     const svgDoc = document.getElementById('graph').contentDocument;
                     if (!svgDoc) return;
@@ -121,7 +128,7 @@ public class DecisionGraphRenderer {
                   </script>
                 </body>
                 </html>
-                """.formatted(traceId, traceId, visitedJs);
+                """.formatted(traceId, visitedJs);
     }
 
     /**
@@ -139,8 +146,8 @@ public class DecisionGraphRenderer {
             String id = e.getKey();
             RequestTrace t = e.getValue();
             String timestamp = t.getTimestamp() != null ? TIMESTAMP_FMT.format(t.getTimestamp()) : "-";
-            String method = t.getMethod() != null ? t.getMethod() : "-";
-            String uri = t.getUri() != null ? t.getUri() : "-";
+            String method = t.getMethod() != null ? escapeHtml(t.getMethod()) : "-";
+            String uri = t.getUri() != null ? escapeHtml(t.getUri()) : "-";
             rows.append("<tr>")
                 .append("<td>").append(timestamp).append("</td>")
                 .append("<td><a href=\"/_dev/trace/").append(id).append("\">").append(id).append("</a></td>")

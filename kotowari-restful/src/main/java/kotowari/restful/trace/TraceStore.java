@@ -47,11 +47,8 @@ public class TraceStore {
      *
      * @return list of id-to-trace entries, newest first
      */
-    public List<Map.Entry<String, RequestTrace>> entries() {
-        List<Map.Entry<String, RequestTrace>> list;
-        synchronized (store) {
-            list = new ArrayList<>(store.entrySet());
-        }
+    public synchronized List<Map.Entry<String, RequestTrace>> entries() {
+        List<Map.Entry<String, RequestTrace>> list = new ArrayList<>(store.entrySet());
         Collections.reverse(list);
         return list;
     }

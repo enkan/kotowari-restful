@@ -68,6 +68,10 @@ HTTP Request
 - `JacksonBeansConverterFactory` lives in `src/test/java/enkan/component/jackson/` (same package as `JacksonBeansConverter`) to access the `protected lifecycle()` method for test setup.
 - Mix `BodyDeserializable` onto `DefaultHttpRequest` via `MixinUtils.mixin(req, BodyDeserializable.class)` when tests need a deserializable body.
 
+## Pull Requests
+
+- Always target `develop` as the base branch (not `master`)
+
 ## Improvement Proposals (ADR)
 
 Improvement proposals and architectural decisions are tracked as GitHub Issues.

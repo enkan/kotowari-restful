@@ -49,7 +49,7 @@ For development-time request tracing, also add:
 <dependency>
     <groupId>net.unit8.enkan</groupId>
     <artifactId>kotowari-restful-devel</artifactId>
-    <version>0.13.0</version>
+    <version>0.13.1-SNAPSHOT</version>
 </dependency>
 ```
 
