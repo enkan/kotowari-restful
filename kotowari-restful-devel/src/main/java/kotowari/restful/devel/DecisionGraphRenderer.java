@@ -32,11 +32,10 @@ public class DecisionGraphRenderer {
     private static final String SVG_PATH = "/kotowari/restful/trace/decision-graph.svg";
 
     /**
-     * Renders the HTML trace viewer page for the given trace.
+     * Escapes special HTML characters in the given string.
      *
-     * @param traceId the trace identifier (shown in the page title)
-     * @param trace   the request trace to visualize
-     * @return the HTML page as a string
+     * @param s the string to escape
+     * @return the escaped string
      */
     static String escapeHtml(String s) {
         return s.replace("&", "&amp;")
