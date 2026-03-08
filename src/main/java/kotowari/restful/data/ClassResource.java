@@ -87,7 +87,7 @@ public class ClassResource implements Resource {
             for (String method : methods) {
                 normalized.add(normalizeHttpMethod(method));
             }
-            return normalized;
+            return Collections.unmodifiableSet(normalized);
         }
     }
 
