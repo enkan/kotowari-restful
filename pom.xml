@@ -5,13 +5,13 @@
     <parent>
         <groupId>net.unit8.enkan</groupId>
         <artifactId>enkan-parent</artifactId>
-        <version>0.13.0</version>
+        <version>0.13.1-SNAPSHOT</version>
     </parent>
 
     <artifactId>kotowari-restful</artifactId>
     <packaging>jar</packaging>
     <name>kotowari-restful</name>
-    <version>0.13.0</version>
+    <version>0.13.1-SNAPSHOT</version>
     <description>Kotowari-Restful is a RESTful API specific framework.</description>
 
     <inceptionYear>2016</inceptionYear>
@@ -59,20 +59,10 @@
         </plugins>
     </build>
 
-    <properties>
-        <enkan.version>0.13.0</enkan.version>
-        <jackson.version>3.1.0</jackson.version>
-    </properties>
-
     <dependencies>
         <dependency>
             <groupId>net.unit8.enkan</groupId>
             <artifactId>kotowari</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>tools.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
-            <version>${jackson.version}</version>
         </dependency>
         <dependency>
             <groupId>net.unit8.enkan</groupId>
@@ -80,12 +70,6 @@
             <version>${enkan.version}</version>
         </dependency>
 
-        <!-- hibernate-validator comes transitively from kotowari and requires an EL implementation -->
-        <dependency>
-            <groupId>org.glassfish.expressly</groupId>
-            <artifactId>expressly</artifactId>
-            <scope>test</scope>
-        </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-api</artifactId>
