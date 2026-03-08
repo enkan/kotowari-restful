@@ -6,6 +6,7 @@ import kotowari.restful.trace.TraceEntry;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Collection;
@@ -190,7 +191,7 @@ public class DecisionGraphRenderer {
             if (in == null) {
                 throw new IllegalStateException("SVG resource not found on classpath: " + SVG_PATH);
             }
-            return new String(in.readAllBytes());
+            return new String(in.readAllBytes(), StandardCharsets.UTF_8);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
