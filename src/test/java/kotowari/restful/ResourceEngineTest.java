@@ -59,10 +59,7 @@ class ResourceEngineTest {
         ApiResponse response = resourceEngine.run(resource, request);
 
         assertThat(response.getStatus()).isEqualTo(405);
-        assertThat(response.getHeaders().get("Allow")).isNotNull();
-        assertThat(response.getHeaders().get("Allow").toString())
-                .contains("GET")
-                .contains("HEAD");
+        assertThat(response.getHeaders().get("Allow")).isEqualTo("GET, HEAD");
     }
 
     @Test
@@ -91,10 +88,6 @@ class ResourceEngineTest {
         ApiResponse response = resourceEngine.run(resource, request);
 
         assertThat(response.getStatus()).isEqualTo(200);
-        assertThat(response.getHeaders().get("Allow")).isNotNull();
-        assertThat(response.getHeaders().get("Allow").toString())
-                .contains("GET")
-                .contains("HEAD")
-                .contains("POST");
+        assertThat(response.getHeaders().get("Allow")).isEqualTo("GET, HEAD, POST");
     }
 }
