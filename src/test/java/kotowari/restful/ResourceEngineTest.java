@@ -221,4 +221,99 @@ class ResourceEngineTest {
         assertThat(response.getStatus()).isEqualTo(301);
         assertThat(response.getHeaders().get("Location")).isEqualTo("/new-location");
     }
+
+    @Test
+    void movedPermanentlyWithUriSetsLocationHeader() {
+        // MOVED_PERMANENTLY returns a URI → 301 with Location header
+        DefaultResource resource = new DefaultResource() {
+            @Override
+            public java.util.function.Function<kotowari.restful.data.RestContext, ?> getFunction(kotowari.restful.DecisionPoint point) {
+                if (point == kotowari.restful.DecisionPoint.EXISTS) {
+                    return ctx -> false;
+                }
+                if (point == kotowari.restful.DecisionPoint.EXISTED) {
+                    return ctx -> true;
+                }
+                if (point == kotowari.restful.DecisionPoint.MOVED_PERMANENTLY) {
+                    return ctx -> java.net.URI.create("/new-location");
+                }
+                return super.getFunction(point);
+            }
+        };
+        HttpRequest request = builder(new DefaultHttpRequest())
+                .set(HttpRequest::setRequestMethod, "GET")
+                .set(HttpRequest::setContentType, "application/json")
+                .set(HttpRequest::setHeaders, Headers.empty())
+                .build();
+
+        ApiResponse response = resourceEngine.run(resource, request);
+
+        assertThat(response.getStatus()).isEqualTo(301);
+        assertThat(response.getHeaders().get("Location")).isEqualTo("/new-location");
+    }
+
+    @Test
+    void movedTemporarilySetsLocationHeader() {
+        // MOVED_TEMPORARILY returns a location string → 307 with Location header
+        DefaultResource resource = new DefaultResource() {
+            @Override
+            public java.util.function.Function<kotowari.restful.data.RestContext, ?> getFunction(kotowari.restful.DecisionPoint point) {
+                if (point == kotowari.restful.DecisionPoint.EXISTS) {
+                    return ctx -> false;
+                }
+                if (point == kotowari.restful.DecisionPoint.EXISTED) {
+                    return ctx -> true;
+                }
+                if (point == kotowari.restful.DecisionPoint.MOVED_PERMANENTLY) {
+                    return ctx -> false;
+                }
+                if (point == kotowari.restful.DecisionPoint.MOVED_TEMPORARILY) {
+                    return ctx -> "/temp-location";
+                }
+                return super.getFunction(point);
+            }
+        };
+        HttpRequest request = builder(new DefaultHttpRequest())
+                .set(HttpRequest::setRequestMethod, "GET")
+                .set(HttpRequest::setContentType, "application/json")
+                .set(HttpRequest::setHeaders, Headers.empty())
+                .build();
+
+        ApiResponse response = resourceEngine.run(resource, request);
+
+        assertThat(response.getStatus()).isEqualTo(307);
+        assertThat(response.getHeaders().get("Location")).isEqualTo("/temp-location");
+    }
+
+    @Test
+    void postRedirectSetsLocationHeader() {
+        // POST_REDIRECT returns a location string → 303 See Other with Location header
+        DefaultResource resource = new DefaultResource() {
+            @Override
+            public Set<String> getAllowedMethods() {
+                return Set.of("GET", "HEAD", "POST");
+            }
+
+            @Override
+            public java.util.function.Function<kotowari.restful.data.RestContext, ?> getFunction(kotowari.restful.DecisionPoint point) {
+                if (point == kotowari.restful.DecisionPoint.METHOD_ALLOWED) {
+                    return DefaultResource.testRequestMethod("GET", "HEAD", "POST");
+                }
+                if (point == kotowari.restful.DecisionPoint.POST_REDIRECT) {
+                    return ctx -> "/created-resource";
+                }
+                return super.getFunction(point);
+            }
+        };
+        HttpRequest request = builder(new DefaultHttpRequest())
+                .set(HttpRequest::setRequestMethod, "POST")
+                .set(HttpRequest::setContentType, "application/json")
+                .set(HttpRequest::setHeaders, Headers.empty())
+                .build();
+
+        ApiResponse response = resourceEngine.run(resource, request);
+
+        assertThat(response.getStatus()).isEqualTo(303);
+        assertThat(response.getHeaders().get("Location")).isEqualTo("/created-resource");
+    }
 }
