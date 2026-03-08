@@ -16,6 +16,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Objects;
+import java.util.Set;
+import java.util.StringJoiner;
 import java.util.function.Function;
 
 import static kotowari.restful.DecisionPoint.*;
@@ -89,7 +91,17 @@ public class ResourceEngine {
      */
     public ApiResponse run(Resource resource, HttpRequest request) {
         RestContext context = new RestContext(resource, request);
-        return runDecisionGraph(context);
+        ApiResponse response = runDecisionGraph(context);
+        if (response.getStatus() == 405 || response.getStatus() == 200 && "OPTIONS".equalsIgnoreCase(request.getRequestMethod())) {
+            response.getHeaders().put("Allow", allowHeaderValue(resource.getAllowedMethods()));
+        }
+        return response;
+    }
+
+    private static String allowHeaderValue(Set<String> methods) {
+        StringJoiner joiner = new StringJoiner(", ");
+        for (String m : methods) joiner.add(m);
+        return joiner.toString();
     }
 
     private static final Function<RestContext, ?> IF_MATCH_STAR_FUNC = context -> Objects.equals("*", context.getRequest().getHeaders().get("if-match"));

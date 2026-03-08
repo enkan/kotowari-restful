@@ -55,6 +55,7 @@ public class ClassResource implements Resource {
     private final Resource parent;
     private final Function<RestContext, ?> methodAllowedFunc;
     private final MethodHandles.Lookup resourceLookup;
+    private final Set<String> allowedMethods;
 
     /**
      * Create argument objects by parameter injectors.
@@ -115,7 +116,7 @@ public class ClassResource implements Resource {
         }
         this.parent = parent;
         this.resourceLookup = tryReflection(() -> MethodHandles.privateLookupIn(resourceClass, LOOKUP));
-        Set<String> allowedMethods = parseAllowedMethods(resourceClass);
+        this.allowedMethods = parseAllowedMethods(resourceClass);
         methodAllowedFunc = context -> allowedMethods.contains(normalizeHttpMethod(context.getRequest().getRequestMethod()));
         functions = new EnumMap<>(DecisionPoint.class);
         Map<DecisionPoint, List<Method>> resourceMethods = new EnumMap<>(DecisionPoint.class);
@@ -153,6 +154,11 @@ public class ClassResource implements Resource {
                 }
             });
         });
+    }
+
+    @Override
+    public Set<String> getAllowedMethods() {
+        return allowedMethods;
     }
 
     @Override
