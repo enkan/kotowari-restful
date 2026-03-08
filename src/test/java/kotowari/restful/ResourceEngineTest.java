@@ -108,7 +108,8 @@ class ResourceEngineTest {
 
     @Test
     void notModifiedResponseHasNoBody() {
-        // Resource that returns 304 by claiming nothing has been modified since
+        // Resource that routes to 304 and also overrides HANDLE_NOT_MODIFIED to return a body,
+        // proving that the post-graph fixup strips it even when the handler would emit one.
         DefaultResource resource = new DefaultResource() {
             @Override
             public java.util.function.Function<kotowari.restful.data.RestContext, ?> getFunction(kotowari.restful.DecisionPoint point) {
@@ -120,6 +121,9 @@ class ResourceEngineTest {
                 }
                 if (point == kotowari.restful.DecisionPoint.ETAG_MATCHES_FOR_IF_NONE) {
                     return ctx -> true;
+                }
+                if (point == kotowari.restful.DecisionPoint.HANDLE_NOT_MODIFIED) {
+                    return ctx -> "should be stripped";
                 }
                 return super.getFunction(point);
             }
@@ -133,6 +137,34 @@ class ResourceEngineTest {
         ApiResponse response = resourceEngine.run(resource, request);
 
         assertThat(response.getStatus()).isEqualTo(304);
+        assertThat(response.getBody()).isNull();
+    }
+
+    @Test
+    void noContentResponseHasNoBody() {
+        // Resource that returns 204 by responding with entity=false after DELETE.
+        // HANDLE_NO_CONTENT is overridden to return a non-null body, proving the fixup strips it.
+        DefaultResource resource = new DefaultResource() {
+            @Override
+            public java.util.function.Function<kotowari.restful.data.RestContext, ?> getFunction(kotowari.restful.DecisionPoint point) {
+                if (point == kotowari.restful.DecisionPoint.METHOD_ALLOWED) {
+                    return DefaultResource.testRequestMethod("GET", "HEAD", "DELETE");
+                }
+                if (point == kotowari.restful.DecisionPoint.HANDLE_NO_CONTENT) {
+                    return ctx -> "should be stripped";
+                }
+                return super.getFunction(point);
+            }
+        };
+        HttpRequest request = builder(new DefaultHttpRequest())
+                .set(HttpRequest::setRequestMethod, "DELETE")
+                .set(HttpRequest::setContentType, "application/json")
+                .set(HttpRequest::setHeaders, Headers.empty())
+                .build();
+
+        ApiResponse response = resourceEngine.run(resource, request);
+
+        assertThat(response.getStatus()).isEqualTo(204);
         assertThat(response.getBody()).isNull();
     }
 }

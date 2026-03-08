@@ -45,7 +45,7 @@ import static kotowari.restful.decision.DecisionFactory.*;
  *   <li>405 and successful OPTIONS responses receive an {@code Allow} header
  *       (RFC 7231 §6.5.5, RFC 9110 §9.3.7).</li>
  *   <li>HEAD responses and 204/304 responses have their body cleared
- *       (RFC 7231 §4.3.2, RFC 7232 §4.1).</li>
+ *       (RFC 7231 §4.3.2, RFC 7232 §4.1, RFC 9110 §15.3.5).</li>
  * </ul>
  *
  * @author kawasima
