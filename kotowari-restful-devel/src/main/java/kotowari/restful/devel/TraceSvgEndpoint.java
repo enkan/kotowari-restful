@@ -21,11 +21,10 @@ import static enkan.util.HttpResponseUtils.response;
  * bundled inside {@code kotowari-restful-devel}.
  */
 public class TraceSvgEndpoint implements Endpoint<HttpRequest, HttpResponse> {
-    private final DecisionGraphRenderer renderer = new DecisionGraphRenderer();
+    private final String svg = new DecisionGraphRenderer().readSvg();
 
     @Override
     public HttpResponse handle(HttpRequest request) {
-        HttpResponse res = response(renderer.readSvg());
-        return contentType(res, "image/svg+xml; charset=UTF-8");
+        return contentType(response(svg), "image/svg+xml; charset=UTF-8");
     }
 }

@@ -38,7 +38,7 @@ public class DecisionGraphRenderer {
      * @param trace   the request trace to visualize
      * @return the HTML page as a string
      */
-    private static String escapeHtml(String s) {
+    static String escapeHtml(String s) {
         return s.replace("&", "&amp;")
                 .replace("<", "&lt;")
                 .replace(">", "&gt;")
@@ -148,9 +148,10 @@ public class DecisionGraphRenderer {
             String timestamp = t.getTimestamp() != null ? TIMESTAMP_FMT.format(t.getTimestamp()) : "-";
             String method = t.getMethod() != null ? escapeHtml(t.getMethod()) : "-";
             String uri = t.getUri() != null ? escapeHtml(t.getUri()) : "-";
+            String safeId = escapeHtml(id);
             rows.append("<tr>")
                 .append("<td>").append(timestamp).append("</td>")
-                .append("<td><a href=\"/_dev/trace/").append(id).append("\">").append(id).append("</a></td>")
+                .append("<td><a href=\"/_dev/trace/").append(safeId).append("\">").append(safeId).append("</a></td>")
                 .append("<td>").append(method).append("</td>")
                 .append("<td>").append(uri).append("</td>")
                 .append("</tr>\n");

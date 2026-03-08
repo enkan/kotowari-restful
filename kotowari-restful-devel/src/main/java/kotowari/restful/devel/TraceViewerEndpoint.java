@@ -18,8 +18,8 @@ import static enkan.util.HttpResponseUtils.response;
  * <p>Mount this endpoint with a path predicate during development:
  *
  * <pre>{@code
- * app.use(GET("/_dev/trace.*"), "traceViewer",
- *         (Middleware<...>) new TraceViewerEndpoint(resourceInvoker.getTraceStore()));
+ * app.use(GET("/_dev/trace.*").and(envIn("development")), "traceViewer",
+ *         new TraceViewerEndpoint(resourceInvoker.getTraceStore()));
  * }</pre>
  *
  * <ul>
@@ -65,8 +65,7 @@ public class TraceViewerEndpoint implements Endpoint<HttpRequest, HttpResponse> 
         }
         Optional<RequestTrace> trace = traceStore.get(id);
         if (trace.isEmpty()) {
-            String safeId = id.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
-            return contentType(response("Trace not found: " + safeId), "text/html; charset=UTF-8");
+            return contentType(response("Trace not found: " + DecisionGraphRenderer.escapeHtml(id)), "text/html; charset=UTF-8");
         }
         return contentType(response(renderer.render(id, trace.get())), "text/html; charset=UTF-8");
     }
