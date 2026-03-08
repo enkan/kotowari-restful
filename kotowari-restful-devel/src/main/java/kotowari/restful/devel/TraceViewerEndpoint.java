@@ -28,7 +28,6 @@ import static enkan.util.HttpResponseUtils.response;
  * </ul>
  */
 public class TraceViewerEndpoint implements Endpoint<HttpRequest, HttpResponse> {
-    private static final String LIST_PATH = "/_dev/trace";
     private static final String DETAIL_PREFIX = "/_dev/trace/";
 
     private final TraceStore traceStore;
