@@ -15,6 +15,7 @@ import kotowari.restful.decision.Node;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.URI;
 import java.util.Objects;
 import java.util.Set;
 import java.util.StringJoiner;
@@ -98,7 +99,7 @@ public class ResourceEngine {
      * @return API response
      */
     public ApiResponse run(Resource resource, HttpRequest request) {
-        RestContext context = new RestContext(resource, request);
+        RestContext context = new RestContext(wrapResource(resource), request);
         ApiResponse response = runDecisionGraph(context);
         int status = response.getStatus();
         if (status == 405 || ("OPTIONS".equalsIgnoreCase(request.getRequestMethod()) && status >= 200 && status < 300)) {
@@ -108,6 +109,64 @@ public class ResourceEngine {
             response.setBody(null);
         }
         return response;
+    }
+
+    /**
+     * Creates a decision node for redirect decisions ({@code MOVED_PERMANENTLY},
+     * {@code MOVED_TEMPORARILY}, {@code POST_REDIRECT}).
+     *
+     * <p>When the resource function returns a {@link String} or {@link URI}, the value
+     * is set as the {@code Location} response header and the decision is truthy.
+     * This satisfies RFC 7231 §6.4 which requires a {@code Location} header on all
+     * 3xx redirect responses.
+     *
+     * @param point     the redirect decision point
+     * @param thenNode  the handler to route to when the decision is truthy (redirect)
+     * @param elseNode  the node to route to when the decision is falsy (no redirect)
+     * @return a new {@link Decision} that extracts the Location header from the return value
+     */
+    /**
+     * Wraps a resource so that:
+     * <ul>
+     *   <li>{@code AUTHORIZED} — when the resource function returns a {@link String},
+     *       it is used as the {@code WWW-Authenticate} header value and the result is
+     *       changed to {@code false} (routes to 401), satisfying RFC 7235 §4.1.</li>
+     *   <li>{@code MOVED_PERMANENTLY}, {@code MOVED_TEMPORARILY}, {@code POST_REDIRECT}
+     *       — when the resource function returns a {@link String} or {@link URI},
+     *       it is set as the {@code Location} header and the result is changed to
+     *       {@code true} (routes to the redirect handler), satisfying RFC 7231 §6.4.</li>
+     * </ul>
+     *
+     * @param resource the original resource
+     * @return a wrapped resource with header-aware function overrides
+     */
+    private static Resource wrapResource(Resource resource) {
+        return point -> {
+            Function<RestContext, ?> original = resource.getFunction(point);
+            return switch (point) {
+                case AUTHORIZED -> original == null ? null : ctx -> {
+                    Object result = original.apply(ctx);
+                    if (result instanceof String challenge) {
+                        ctx.addHeader("WWW-Authenticate", challenge);
+                        return false;
+                    }
+                    return result;
+                };
+                case MOVED_PERMANENTLY, MOVED_TEMPORARILY, POST_REDIRECT ->
+                    original == null ? null : ctx -> {
+                        Object result = original.apply(ctx);
+                        if (result instanceof String location) {
+                            ctx.addHeader("Location", location);
+                            return true;
+                        } else if (result instanceof URI uri) {
+                            ctx.addHeader("Location", uri.toString());
+                            return true;
+                        }
+                        return result;
+                    };
+                default -> original;
+            };
+        };
     }
 
     private static String allowHeaderValue(Set<String> methods) {

@@ -100,6 +100,23 @@ public class RestContext {
         this.headers = headers;
     }
 
+    /**
+     * Adds a single response header to the context.
+     *
+     * <p>If no headers object has been set yet, one is created automatically.
+     * This is the preferred way for decision functions to set individual response
+     * headers such as {@code WWW-Authenticate} or {@code Location}.
+     *
+     * @param name  the header name (case-insensitive per HTTP spec)
+     * @param value the header value
+     */
+    public void addHeader(String name, String value) {
+        if (headers == null) {
+            headers = Headers.empty();
+        }
+        headers.put(name, value);
+    }
+
     public Throwable getException() {
         return exception;
     }

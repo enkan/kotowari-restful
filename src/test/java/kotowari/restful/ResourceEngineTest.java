@@ -167,4 +167,58 @@ class ResourceEngineTest {
         assertThat(response.getStatus()).isEqualTo(204);
         assertThat(response.getBody()).isNull();
     }
+
+    @Test
+    void unauthorizedSetsWwwAuthenticateHeader() {
+        // AUTHORIZED returns a WWW-Authenticate challenge string → 401 with header
+        DefaultResource resource = new DefaultResource() {
+            @Override
+            public java.util.function.Function<kotowari.restful.data.RestContext, ?> getFunction(kotowari.restful.DecisionPoint point) {
+                if (point == kotowari.restful.DecisionPoint.AUTHORIZED) {
+                    return ctx -> "Bearer realm=\"api\"";
+                }
+                return super.getFunction(point);
+            }
+        };
+        HttpRequest request = builder(new DefaultHttpRequest())
+                .set(HttpRequest::setRequestMethod, "GET")
+                .set(HttpRequest::setContentType, "application/json")
+                .set(HttpRequest::setHeaders, Headers.empty())
+                .build();
+
+        ApiResponse response = resourceEngine.run(resource, request);
+
+        assertThat(response.getStatus()).isEqualTo(401);
+        assertThat(response.getHeaders().get("WWW-Authenticate")).isEqualTo("Bearer realm=\"api\"");
+    }
+
+    @Test
+    void movedPermanentlySetsLocationHeader() {
+        // MOVED_PERMANENTLY returns a location string → 301 with Location header
+        DefaultResource resource = new DefaultResource() {
+            @Override
+            public java.util.function.Function<kotowari.restful.data.RestContext, ?> getFunction(kotowari.restful.DecisionPoint point) {
+                if (point == kotowari.restful.DecisionPoint.EXISTS) {
+                    return ctx -> false;
+                }
+                if (point == kotowari.restful.DecisionPoint.EXISTED) {
+                    return ctx -> true;
+                }
+                if (point == kotowari.restful.DecisionPoint.MOVED_PERMANENTLY) {
+                    return ctx -> "/new-location";
+                }
+                return super.getFunction(point);
+            }
+        };
+        HttpRequest request = builder(new DefaultHttpRequest())
+                .set(HttpRequest::setRequestMethod, "GET")
+                .set(HttpRequest::setContentType, "application/json")
+                .set(HttpRequest::setHeaders, Headers.empty())
+                .build();
+
+        ApiResponse response = resourceEngine.run(resource, request);
+
+        assertThat(response.getStatus()).isEqualTo(301);
+        assertThat(response.getHeaders().get("Location")).isEqualTo("/new-location");
+    }
 }
