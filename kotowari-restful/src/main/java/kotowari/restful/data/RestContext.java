@@ -3,6 +3,8 @@ package kotowari.restful.data;
 import enkan.collection.Headers;
 import enkan.data.HttpRequest;
 import kotowari.restful.DecisionPoint;
+import kotowari.restful.trace.RequestTrace;
+import kotowari.restful.trace.TraceEntry;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -47,6 +49,7 @@ public class RestContext {
     private int status;
     private Headers headers;
     private Throwable exception;
+    private RequestTrace trace;
 
     /**
      * Creates a new context for the given resource and request.
@@ -115,6 +118,39 @@ public class RestContext {
             headers = Headers.empty();
         }
         headers.put(name, value);
+    }
+
+    /**
+     * Enables request tracing for this context.
+     *
+     * <p>Once enabled, every {@link Decision}, {@link kotowari.restful.decision.Action},
+     * and {@link kotowari.restful.decision.Handler} node visited during graph traversal
+     * is recorded via {@link #recordTrace(DecisionPoint, String, Boolean)}.
+     */
+    public void enableTracing() {
+        this.trace = new RequestTrace();
+    }
+
+    /**
+     * Records a single node visit. This is a no-op when tracing is not enabled.
+     *
+     * @param point  the decision point of the visited node
+     * @param kind   the node kind: {@code "DECISION"}, {@code "ACTION"}, or {@code "HANDLER"}
+     * @param result the boolean result, or {@code null} for action/handler nodes
+     */
+    public void recordTrace(DecisionPoint point, String kind, Boolean result) {
+        if (trace != null) {
+            trace.record(new TraceEntry(point, kind, result));
+        }
+    }
+
+    /**
+     * Returns the accumulated request trace, if tracing was enabled for this context.
+     *
+     * @return an {@link Optional} containing the trace, or empty if tracing was not enabled
+     */
+    public Optional<RequestTrace> getTrace() {
+        return Optional.ofNullable(trace);
     }
 
     public Throwable getException() {

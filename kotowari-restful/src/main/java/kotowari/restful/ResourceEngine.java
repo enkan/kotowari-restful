@@ -15,10 +15,13 @@ import kotowari.restful.decision.Node;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import kotowari.restful.trace.TraceStore;
+
 import java.net.URI;
 import java.util.Objects;
 import java.util.Set;
 import java.util.StringJoiner;
+import java.util.UUID;
 import java.util.function.Function;
 
 import static kotowari.restful.DecisionPoint.*;
@@ -54,6 +57,8 @@ import static kotowari.restful.decision.DecisionFactory.*;
 public class ResourceEngine {
     private static final Logger LOG = LoggerFactory.getLogger(ResourceEngine.class);
     private boolean printStackTrace = false;
+    private boolean tracingEnabled = false;
+    private final TraceStore traceStore = new TraceStore();
     private final Node<?> defaultGraph = createDefaultGraph();
 
     /**
@@ -100,6 +105,9 @@ public class ResourceEngine {
      */
     public ApiResponse run(Resource resource, HttpRequest request) {
         RestContext context = new RestContext(wrapResource(resource), request);
+        if (tracingEnabled) {
+            context.enableTracing();
+        }
         ApiResponse response = runDecisionGraph(context);
         int status = response.getStatus();
         if (status == 405 || ("OPTIONS".equalsIgnoreCase(request.getRequestMethod()) && status >= 200 && status < 300)) {
@@ -108,7 +116,39 @@ public class ResourceEngine {
         if ("HEAD".equalsIgnoreCase(request.getRequestMethod()) || status == 204 || status == 304) {
             response.setBody(null);
         }
+        if (tracingEnabled) {
+            String traceId = UUID.randomUUID().toString().replace("-", "").substring(0, 8);
+            context.getTrace().ifPresent(t -> {
+                t.setMethod(request.getRequestMethod());
+                t.setUri(request.getUri());
+                traceStore.put(traceId, t);
+                LOG.info("Trace recorded: id={} method={} uri={}", traceId,
+                        request.getRequestMethod(), request.getUri());
+            });
+        }
         return response;
+    }
+
+    /**
+     * Enables or disables per-request decision graph tracing.
+     *
+     * <p>When enabled, every node visited during graph traversal is recorded in a
+     * {@link RequestTrace} and stored in the {@link TraceStore} for later retrieval.
+     * This is intended for development use only and should be disabled in production.
+     *
+     * @param tracingEnabled {@code true} to enable tracing
+     */
+    public void setTracingEnabled(boolean tracingEnabled) {
+        this.tracingEnabled = tracingEnabled;
+    }
+
+    /**
+     * Returns the {@link TraceStore} that accumulates per-request traces.
+     *
+     * @return the trace store
+     */
+    public TraceStore getTraceStore() {
+        return traceStore;
     }
 
     /**
