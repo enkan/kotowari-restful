@@ -40,6 +40,14 @@ import static kotowari.restful.decision.DecisionFactory.*;
  *       Resource classes may override {@code @Decision(HANDLE_EXCEPTION)} to customize.</li>
  * </ul>
  *
+ * <p>Post-graph response fixups applied by {@link #run(Resource, HttpRequest)}:
+ * <ul>
+ *   <li>405 and successful OPTIONS responses receive an {@code Allow} header
+ *       (RFC 7231 §6.5.5, RFC 9110 §9.3.7).</li>
+ *   <li>HEAD responses and 204/304 responses have their body cleared
+ *       (RFC 7231 §4.3.2, RFC 7232 §4.1).</li>
+ * </ul>
+ *
  * @author kawasima
  */
 public class ResourceEngine {
@@ -95,6 +103,9 @@ public class ResourceEngine {
         int status = response.getStatus();
         if (status == 405 || ("OPTIONS".equalsIgnoreCase(request.getRequestMethod()) && status >= 200 && status < 300)) {
             response.getHeaders().put("Allow", allowHeaderValue(resource.getAllowedMethods()));
+        }
+        if ("HEAD".equalsIgnoreCase(request.getRequestMethod()) || status == 204 || status == 304) {
+            response.setBody(null);
         }
         return response;
     }
