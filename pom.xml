@@ -8,11 +8,16 @@
         <version>0.13.1-SNAPSHOT</version>
     </parent>
 
-    <artifactId>kotowari-restful</artifactId>
-    <packaging>jar</packaging>
-    <name>kotowari-restful</name>
+    <artifactId>kotowari-restful-parent</artifactId>
+    <packaging>pom</packaging>
+    <name>kotowari-restful-parent</name>
     <version>0.13.1-SNAPSHOT</version>
     <description>Kotowari-Restful is a RESTful API specific framework.</description>
+
+    <modules>
+        <module>kotowari-restful</module>
+        <module>kotowari-restful-devel</module>
+    </modules>
 
     <inceptionYear>2016</inceptionYear>
     <licenses>
@@ -46,41 +51,6 @@
             <url>https://central.sonatype.com/</url>
         </repository>
     </distributionManagement>
-
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <configuration>
-                    <release>${java.version}</release>
-                </configuration>
-            </plugin>
-        </plugins>
-    </build>
-
-    <dependencies>
-        <dependency>
-            <groupId>net.unit8.enkan</groupId>
-            <artifactId>kotowari</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>net.unit8.enkan</groupId>
-            <artifactId>enkan-component-jackson</artifactId>
-            <version>${enkan.version}</version>
-        </dependency>
-
-        <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter-api</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.assertj</groupId>
-            <artifactId>assertj-core</artifactId>
-            <scope>test</scope>
-        </dependency>
-    </dependencies>
 
     <profiles>
         <profile>

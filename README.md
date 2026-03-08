@@ -19,6 +19,18 @@ A declarative RESTful API framework for Java, built on [enkan](https://github.co
 - Java 25+
 - enkan/kotowari 0.13.0+
 
+## Project Structure
+
+This is a multi-module Maven project:
+
+```text
+kotowari-restful/           ← root (parent POM)
+├── kotowari-restful/       ← core library
+└── kotowari-restful-devel/ ← development tools (request tracing, graph visualization)
+```
+
+The `example/` directory is an independent Maven project demonstrating usage.
+
 ## Installation
 
 Add the following dependency to your `pom.xml`:
@@ -27,6 +39,16 @@ Add the following dependency to your `pom.xml`:
 <dependency>
     <groupId>net.unit8.enkan</groupId>
     <artifactId>kotowari-restful</artifactId>
+    <version>0.13.0</version>
+</dependency>
+```
+
+For development-time request tracing, also add:
+
+```xml
+<dependency>
+    <groupId>net.unit8.enkan</groupId>
+    <artifactId>kotowari-restful-devel</artifactId>
     <version>0.13.0</version>
 </dependency>
 ```
@@ -221,6 +243,64 @@ Annotate your resource class with `@AllowedMethods` to override the default (`GE
 public class ArticlesResource {
     // ...
 }
+```
+
+## Request Tracing (Development)
+
+`kotowari-restful-devel` provides a Liberator-style decision graph visualizer that shows which nodes each request passed through, color-coded on the SVG graph.
+
+### Enable tracing
+
+```java
+ResourceInvokerMiddleware<HttpResponse> resourceInvoker =
+        builder(new ResourceInvokerMiddleware<HttpResponse>(injector))
+                .set(ResourceInvokerMiddleware::setParameterInjectors, parameterInjectors)
+                .set(ResourceInvokerMiddleware::setTracingEnabled, true)
+                .build();
+```
+
+### Mount the dev endpoints
+
+Add `TraceSvgEndpoint` and `TraceViewerEndpoint` to your application **before** `ContentNegotiationMiddleware` (they serve HTML/SVG, not JSON):
+
+```java
+import kotowari.restful.devel.TraceSvgEndpoint;
+import kotowari.restful.devel.TraceViewerEndpoint;
+import static enkan.predicate.PathPredicate.GET;
+import static enkan.util.Predicates.envIn;
+
+app.use(GET("/_dev/trace\\.svg").and(envIn("development")), "traceSvg", new TraceSvgEndpoint());
+app.use(GET("/_dev/trace.*").and(envIn("development")), "traceViewer",
+        new TraceViewerEndpoint(resourceInvoker.getTraceStore()));
+```
+
+### Available endpoints
+
+| URL | Description |
+| --- | --- |
+| `/_dev/trace` | List of all recorded traces (newest first), with request time, method, and URI |
+| `/_dev/trace/<id>` | Decision graph SVG with visited nodes highlighted for a specific request |
+| `/_dev/trace.svg` | The raw decision graph SVG |
+
+### Color coding
+
+| Color | Meaning |
+| --- | --- |
+| Green | Decision node evaluated to `true` |
+| Red | Decision node evaluated to `false` |
+| Blue | Action or handler node |
+| Orange edge | Traversed edge between consecutive nodes |
+
+At most 100 traces are retained in memory; oldest entries are evicted automatically.
+
+### Regenerating the decision graph SVG
+
+The DOT source is at `kotowari-restful-devel/src/main/resources/kotowari/restful/trace/decision-graph.dot`.
+To regenerate the SVG:
+
+```bash
+dot -Tsvg kotowari-restful-devel/src/main/resources/kotowari/restful/trace/decision-graph.dot \
+    -o kotowari-restful-devel/src/main/resources/kotowari/restful/trace/decision-graph.svg
 ```
 
 ## Full Example

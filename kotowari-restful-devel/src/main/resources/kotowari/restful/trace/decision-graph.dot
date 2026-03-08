@@ -1,0 +1,298 @@
+digraph "kotowari-restful decision graph" {
+    graph [rankdir=TB, fontname="sans-serif", fontsize=12, bgcolor="#ffffff", ordering=out, newrank=true]
+    node  [fontname="sans-serif", fontsize=12]
+    edge  [fontname="sans-serif", fontsize=10]
+
+    // ── Styles ──────────────────────────────────────────────────────────────
+    // Action nodes (ellipse)
+    node [shape=ellipse, style=filled, fillcolor="#d0e8ff", color="#4a90d9"]
+
+    INITIALIZE_CONTEXT [label="initialize-context"]
+    POST  [label="post!"]
+    PUT   [label="put!"]
+    PATCH [label="patch!"]
+    DELETE [label="delete!"]
+
+    // Decision nodes (rectangle)
+    node [shape=rectangle, style=filled, fillcolor="#ffffff", color="#000000"]
+
+    SERVICE_AVAILABLE       [label="service-available?"]
+    KNOWN_METHOD            [label="known-method?"]
+    URI_TOO_LONG            [label="uri-too-long?"]
+    METHOD_ALLOWED          [label="method-allowed?"]
+    MALFORMED               [label="malformed?"]
+    AUTHORIZED              [label="authorized?"]
+    ALLOWED                 [label="allowed?"]
+    VALID_CONTENT_HEADER    [label="valid-content-header?"]
+    KNOWN_CONTENT_TYPE      [label="known-content-type?"]
+    VALID_ENTITY_LENGTH     [label="valid-entity-length?"]
+    IS_OPTIONS              [label="is-options?"]
+    ACCEPT_EXISTS           [label="accept-exists?"]
+    MEDIA_TYPE_AVAILABLE    [label="media-type-available?"]
+    ACCEPT_LANGUAGE_EXISTS  [label="accept-language-exists?"]
+    LANGUAGE_AVAILABLE      [label="language-available?"]
+    ACCEPT_CHARSET_EXISTS   [label="accept-charset-exists?"]
+    CHARSET_AVAILABLE       [label="charset-available?"]
+    ACCEPT_ENCODING_EXISTS  [label="accept-encoding-exists?"]
+    ENCODING_AVAILABLE      [label="encoding-available?"]
+    PROCESSABLE             [label="processable?"]
+    EXISTS                  [label="exists?"]
+    IF_MATCH_EXISTS         [label="if-match-exists?"]
+    IF_MATCH_STAR           [label="if-match-star?"]
+    ETAG_MATCHES_FOR_IF_MATCH [label="etag-matches-for-if-match?"]
+    IF_UNMODIFIED_SINCE_EXISTS [label="if-unmodified-since-exists?"]
+    IF_UNMODIFIED_SINCE_VALID_DATE [label="if-unmodified-since-valid-date?"]
+    UNMODIFIED_SINCE        [label="unmodified-since?"]
+    IF_NONE_MATCH_EXISTS    [label="if-none-match-exists?"]
+    IF_NONE_MATCH_STAR      [label="if-none-match-star?"]
+    ETAG_MATCHES_FOR_IF_NONE [label="etag-matches-for-if-none?"]
+    IF_MODIFIED_SINCE_EXISTS [label="if-modified-since-exists?"]
+    IF_MODIFIED_SINCE_VALID_DATE [label="if-modified-since-valid-date?"]
+    MODIFIED_SINCE          [label="modified-since?"]
+    METHOD_DELETE           [label="method-delete?"]
+    METHOD_PATCH            [label="method-patch?"]
+    POST_TO_EXISTING        [label="post-to-existing?"]
+    PUT_TO_EXISTING         [label="put-to-existing?"]
+    CONFLICT                [label="conflict?"]
+    DOES_IF_MATCH_STAR_EXIST_FOR_MISSING [label="does-if-match-star-exist-for-missing?"]
+    METHOD_PUT              [label="method-put?"]
+    PUT_TO_DIFFERENT_URL    [label="put-to-different-url?"]
+    CAN_PUT_TO_MISSING      [label="can-put-to-missing?"]
+    EXISTED                 [label="existed?"]
+    MOVED_PERMANENTLY       [label="moved-permanently?"]
+    MOVED_TEMPORARILY       [label="moved-temporarily?"]
+    POST_TO_GONE            [label="post-to-gone?"]
+    CAN_POST_TO_GONE        [label="can-post-to-gone?"]
+    POST_TO_MISSING         [label="post-to-missing?"]
+    CAN_POST_TO_MISSING     [label="can-post-to-missing?"]
+    METHOD_POST             [label="method-post?"]
+    DELETE_ENACTED          [label="delete-enacted?"]
+    PATCH_ENACTED           [label="patch-enacted?"]
+    POST_ENACTED            [label="post-enacted?"]
+    PUT_ENACTED             [label="put-enacted?"]
+    POST_REDIRECT           [label="post-redirect?"]
+    NEW                     [label="new?"]
+    RESPOND_WITH_ENTITY     [label="respond-with-entity?"]
+    MULTIPLE_REPRESENTATIONS [label="multiple-representations?"]
+    IF_NONE_MATCH           [label="if-none-match?"]
+
+    // Handler nodes (filled yellow rectangle)
+    node [shape=rectangle, style=filled, fillcolor="#fbdf6f", color="#000000"]
+
+    HANDLE_SERVICE_NOT_AVAILABLE [label="503\nservice-not-available"]
+    HANDLE_UNKNOWN_METHOD        [label="501\nunknown-method"]
+    HANDLE_URI_TOO_LONG          [label="414\nuri-too-long"]
+    HANDLE_METHOD_NOT_ALLOWED    [label="405\nmethod-not-allowed"]
+    HANDLE_MALFORMED             [label="400\nmalformed / bad-request"]
+    HANDLE_UNAUTHORIZED          [label="401\nunauthorized"]
+    HANDLE_FORBIDDEN             [label="403\nforbidden"]
+    HANDLE_NOT_IMPLEMENTED       [label="501\nnot-implemented"]
+    HANDLE_UNSUPPORTED_MEDIA_TYPE [label="415\nunsupported-media-type"]
+    HANDLE_REQUEST_ENTITY_TOO_LARGE [label="413\nrequest-entity-too-large"]
+    HANDLE_OPTIONS               [label="200\noptions"]
+    HANDLE_NOT_ACCEPTABLE        [label="406\nnot-acceptable"]
+    HANDLE_UNPROCESSABLE_ENTITY  [label="422\nunprocessable-entity"]
+    HANDLE_PRECONDITION_FAILED   [label="412\nprecondition-failed"]
+    HANDLE_NOT_MODIFIED          [label="304\nnot-modified"]
+    HANDLE_NOT_FOUND             [label="404\nnot-found"]
+    HANDLE_GONE                  [label="410\ngone"]
+    HANDLE_CONFLICT              [label="409\nconflict"]
+    HANDLE_MOVED_PERMANENTLY     [label="301\nmoved-permanently"]
+    HANDLE_MOVED_TEMPORARILY     [label="307\nmoved-temporarily"]
+    HANDLE_ACCEPTED              [label="202\naccepted"]
+    HANDLE_CREATED               [label="201\ncreated"]
+    HANDLE_SEE_OTHER             [label="303\nsee-other"]
+    HANDLE_NO_CONTENT            [label="204\nno-content"]
+    HANDLE_MULTIPLE_REPRESENTATIONS [label="300\nmultiple-representations"]
+    HANDLE_OK                    [label="200\nok"]
+    HANDLE_EXCEPTION             [label="500\nexception"]
+
+    // ── Rank constraints ────────────────────────────────────────────────────
+    { rank=min; INITIALIZE_CONTEXT }
+
+    // ── Edges ───────────────────────────────────────────────────────────────
+    // Edge labels: T = true/yes branch, F = false/no branch
+
+    INITIALIZE_CONTEXT -> SERVICE_AVAILABLE
+
+    SERVICE_AVAILABLE -> KNOWN_METHOD         [label="T"]
+    SERVICE_AVAILABLE -> HANDLE_SERVICE_NOT_AVAILABLE [label="F"]
+
+    KNOWN_METHOD -> URI_TOO_LONG              [label="T"]
+    KNOWN_METHOD -> HANDLE_UNKNOWN_METHOD     [label="F"]
+
+    URI_TOO_LONG -> HANDLE_URI_TOO_LONG       [label="T"]
+    URI_TOO_LONG -> METHOD_ALLOWED            [label="F"]
+
+    METHOD_ALLOWED -> MALFORMED               [label="T"]
+    METHOD_ALLOWED -> HANDLE_METHOD_NOT_ALLOWED [label="F"]
+
+    MALFORMED -> HANDLE_MALFORMED             [label="T"]
+    MALFORMED -> AUTHORIZED                   [label="F"]
+
+    AUTHORIZED -> ALLOWED                     [label="T"]
+    AUTHORIZED -> HANDLE_UNAUTHORIZED         [label="F"]
+
+    ALLOWED -> VALID_CONTENT_HEADER           [label="T"]
+    ALLOWED -> HANDLE_FORBIDDEN               [label="F"]
+
+    VALID_CONTENT_HEADER -> KNOWN_CONTENT_TYPE [label="T"]
+    VALID_CONTENT_HEADER -> HANDLE_NOT_IMPLEMENTED [label="F"]
+
+    KNOWN_CONTENT_TYPE -> VALID_ENTITY_LENGTH  [label="T"]
+    KNOWN_CONTENT_TYPE -> HANDLE_UNSUPPORTED_MEDIA_TYPE [label="F"]
+
+    VALID_ENTITY_LENGTH -> IS_OPTIONS          [label="T"]
+    VALID_ENTITY_LENGTH -> HANDLE_REQUEST_ENTITY_TOO_LARGE [label="F"]
+
+    IS_OPTIONS -> HANDLE_OPTIONS               [label="T"]
+    IS_OPTIONS -> ACCEPT_EXISTS                [label="F"]
+
+    ACCEPT_EXISTS -> MEDIA_TYPE_AVAILABLE      [label="T"]
+    ACCEPT_EXISTS -> ACCEPT_LANGUAGE_EXISTS    [label="F"]
+
+    MEDIA_TYPE_AVAILABLE -> ACCEPT_LANGUAGE_EXISTS [label="T"]
+    MEDIA_TYPE_AVAILABLE -> HANDLE_NOT_ACCEPTABLE  [label="F"]
+
+    ACCEPT_LANGUAGE_EXISTS -> LANGUAGE_AVAILABLE   [label="T"]
+    ACCEPT_LANGUAGE_EXISTS -> ACCEPT_CHARSET_EXISTS [label="F"]
+
+    LANGUAGE_AVAILABLE -> ACCEPT_CHARSET_EXISTS    [label="T"]
+    LANGUAGE_AVAILABLE -> HANDLE_NOT_ACCEPTABLE    [label="F"]
+
+    ACCEPT_CHARSET_EXISTS -> CHARSET_AVAILABLE     [label="T"]
+    ACCEPT_CHARSET_EXISTS -> ACCEPT_ENCODING_EXISTS [label="F"]
+
+    CHARSET_AVAILABLE -> ACCEPT_ENCODING_EXISTS    [label="T"]
+    CHARSET_AVAILABLE -> HANDLE_NOT_ACCEPTABLE     [label="F"]
+
+    ACCEPT_ENCODING_EXISTS -> ENCODING_AVAILABLE   [label="T"]
+    ACCEPT_ENCODING_EXISTS -> PROCESSABLE          [label="F"]
+
+    ENCODING_AVAILABLE -> PROCESSABLE              [label="T"]
+    ENCODING_AVAILABLE -> HANDLE_NOT_ACCEPTABLE    [label="F"]
+
+    PROCESSABLE -> EXISTS                          [label="T"]
+    PROCESSABLE -> HANDLE_UNPROCESSABLE_ENTITY     [label="F"]
+
+    EXISTS -> IF_MATCH_EXISTS                      [label="T"]
+    EXISTS -> DOES_IF_MATCH_STAR_EXIST_FOR_MISSING [label="F"]
+
+    IF_MATCH_EXISTS -> IF_MATCH_STAR               [label="T"]
+    IF_MATCH_EXISTS -> IF_UNMODIFIED_SINCE_EXISTS  [label="F"]
+
+    IF_MATCH_STAR -> IF_UNMODIFIED_SINCE_EXISTS    [label="T"]
+    IF_MATCH_STAR -> ETAG_MATCHES_FOR_IF_MATCH     [label="F"]
+
+    ETAG_MATCHES_FOR_IF_MATCH -> IF_UNMODIFIED_SINCE_VALID_DATE [label="T"]
+    ETAG_MATCHES_FOR_IF_MATCH -> HANDLE_PRECONDITION_FAILED     [label="F"]
+
+    IF_UNMODIFIED_SINCE_EXISTS -> IF_UNMODIFIED_SINCE_VALID_DATE [label="T"]
+    IF_UNMODIFIED_SINCE_EXISTS -> IF_NONE_MATCH_EXISTS           [label="F"]
+
+    IF_UNMODIFIED_SINCE_VALID_DATE -> UNMODIFIED_SINCE           [label="T"]
+    IF_UNMODIFIED_SINCE_VALID_DATE -> IF_NONE_MATCH_EXISTS       [label="F"]
+
+    UNMODIFIED_SINCE -> HANDLE_PRECONDITION_FAILED  [label="T"]
+    UNMODIFIED_SINCE -> IF_NONE_MATCH_EXISTS         [label="F"]
+
+    IF_NONE_MATCH_EXISTS -> IF_NONE_MATCH_STAR       [label="T"]
+    IF_NONE_MATCH_EXISTS -> IF_MODIFIED_SINCE_EXISTS [label="F"]
+
+    IF_NONE_MATCH_STAR -> IF_NONE_MATCH              [label="T"]
+    IF_NONE_MATCH_STAR -> ETAG_MATCHES_FOR_IF_NONE   [label="F"]
+
+    ETAG_MATCHES_FOR_IF_NONE -> IF_NONE_MATCH        [label="T"]
+    ETAG_MATCHES_FOR_IF_NONE -> IF_MODIFIED_SINCE_EXISTS [label="F"]
+
+    IF_NONE_MATCH -> HANDLE_NOT_MODIFIED             [label="T (GET/HEAD)"]
+    IF_NONE_MATCH -> HANDLE_PRECONDITION_FAILED      [label="F (other)"]
+
+    IF_MODIFIED_SINCE_EXISTS -> IF_MODIFIED_SINCE_VALID_DATE [label="T"]
+    IF_MODIFIED_SINCE_EXISTS -> METHOD_DELETE                [label="F"]
+
+    IF_MODIFIED_SINCE_VALID_DATE -> MODIFIED_SINCE           [label="T"]
+    IF_MODIFIED_SINCE_VALID_DATE -> METHOD_DELETE            [label="F"]
+
+    MODIFIED_SINCE -> METHOD_DELETE                          [label="T"]
+    MODIFIED_SINCE -> HANDLE_NOT_MODIFIED                    [label="F"]
+
+    METHOD_DELETE -> DELETE                                  [label="T"]
+    METHOD_DELETE -> METHOD_PATCH                            [label="F"]
+
+    DELETE -> DELETE_ENACTED
+    DELETE_ENACTED -> RESPOND_WITH_ENTITY                    [label="T"]
+    DELETE_ENACTED -> HANDLE_ACCEPTED                        [label="F"]
+
+    METHOD_PATCH -> PATCH                                    [label="T"]
+    METHOD_PATCH -> POST_TO_EXISTING                         [label="F"]
+
+    PATCH -> PATCH_ENACTED
+    PATCH_ENACTED -> RESPOND_WITH_ENTITY                     [label="T"]
+    PATCH_ENACTED -> HANDLE_ACCEPTED                         [label="F"]
+
+    POST_TO_EXISTING -> CONFLICT                             [label="T (POST)"]
+    POST_TO_EXISTING -> PUT_TO_EXISTING                      [label="F"]
+
+    PUT_TO_EXISTING -> CONFLICT                              [label="T (PUT)"]
+    PUT_TO_EXISTING -> MULTIPLE_REPRESENTATIONS              [label="F"]
+
+    CONFLICT -> HANDLE_CONFLICT                              [label="T"]
+    CONFLICT -> METHOD_POST                                  [label="F"]
+
+    METHOD_POST -> POST                                      [label="T"]
+    METHOD_POST -> PUT                                       [label="F"]
+
+    POST -> POST_ENACTED
+    POST_ENACTED -> POST_REDIRECT                            [label="T"]
+    POST_ENACTED -> HANDLE_ACCEPTED                          [label="F"]
+
+    POST_REDIRECT -> HANDLE_SEE_OTHER                        [label="T"]
+    POST_REDIRECT -> NEW                                     [label="F"]
+
+    PUT -> PUT_ENACTED
+    PUT_ENACTED -> NEW                                       [label="T"]
+    PUT_ENACTED -> HANDLE_ACCEPTED                           [label="F"]
+
+    DOES_IF_MATCH_STAR_EXIST_FOR_MISSING -> HANDLE_PRECONDITION_FAILED [label="T"]
+    DOES_IF_MATCH_STAR_EXIST_FOR_MISSING -> METHOD_PUT                 [label="F"]
+
+    METHOD_PUT -> PUT_TO_DIFFERENT_URL                       [label="T"]
+    METHOD_PUT -> EXISTED                                    [label="F"]
+
+    PUT_TO_DIFFERENT_URL -> HANDLE_MOVED_PERMANENTLY         [label="T"]
+    PUT_TO_DIFFERENT_URL -> CAN_PUT_TO_MISSING               [label="F"]
+
+    CAN_PUT_TO_MISSING -> CONFLICT                           [label="T"]
+    CAN_PUT_TO_MISSING -> HANDLE_NOT_FOUND                   [label="F"]
+
+    EXISTED -> MOVED_PERMANENTLY                             [label="T"]
+    EXISTED -> POST_TO_MISSING                               [label="F"]
+
+    MOVED_PERMANENTLY -> HANDLE_MOVED_PERMANENTLY            [label="T"]
+    MOVED_PERMANENTLY -> MOVED_TEMPORARILY                   [label="F"]
+
+    MOVED_TEMPORARILY -> HANDLE_MOVED_TEMPORARILY            [label="T"]
+    MOVED_TEMPORARILY -> POST_TO_GONE                        [label="F"]
+
+    POST_TO_GONE -> CAN_POST_TO_GONE                         [label="T (POST)"]
+    POST_TO_GONE -> HANDLE_GONE                              [label="F"]
+
+    CAN_POST_TO_GONE -> POST                                 [label="T"]
+    CAN_POST_TO_GONE -> HANDLE_GONE                          [label="F"]
+
+    POST_TO_MISSING -> CAN_POST_TO_MISSING                   [label="T (POST)"]
+    POST_TO_MISSING -> HANDLE_NOT_FOUND                      [label="F"]
+
+    CAN_POST_TO_MISSING -> POST                              [label="T"]
+    CAN_POST_TO_MISSING -> HANDLE_NOT_FOUND                  [label="F"]
+
+    NEW -> HANDLE_CREATED                                    [label="T"]
+    NEW -> RESPOND_WITH_ENTITY                               [label="F"]
+
+    RESPOND_WITH_ENTITY -> MULTIPLE_REPRESENTATIONS          [label="T"]
+    RESPOND_WITH_ENTITY -> HANDLE_NO_CONTENT                 [label="F"]
+
+    MULTIPLE_REPRESENTATIONS -> HANDLE_MULTIPLE_REPRESENTATIONS [label="T"]
+    MULTIPLE_REPRESENTATIONS -> HANDLE_OK                       [label="F"]
+}

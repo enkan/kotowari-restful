@@ -13,6 +13,7 @@ import kotowari.restful.data.ApiResponse;
 import kotowari.restful.data.ClassResource;
 import kotowari.restful.data.DefaultResource;
 import kotowari.restful.data.Resource;
+import kotowari.restful.trace.TraceStore;
 import kotowari.util.ParameterUtils;
 
 import jakarta.annotation.PostConstruct;
@@ -44,6 +45,7 @@ public class ResourceInvokerMiddleware<RES> implements Middleware<HttpRequest, R
     private List<ParameterInjector<?>> parameterInjectors;
     private Resource baseResource;
     private boolean outputErrorReason = false;
+    private boolean tracingEnabled = false;
 
     @Inject
     private BeansConverter beansConverter;
@@ -64,7 +66,9 @@ public class ResourceInvokerMiddleware<RES> implements Middleware<HttpRequest, R
         if (outputErrorReason) {
             engine.setPrintStackTrace(true);
         }
-
+        if (tracingEnabled) {
+            engine.setTracingEnabled(true);
+        }
     }
 
     /**
@@ -117,5 +121,29 @@ public class ResourceInvokerMiddleware<RES> implements Middleware<HttpRequest, R
      */
     public void setOutputErrorReason(boolean outputErrorReason) {
         this.outputErrorReason = outputErrorReason;
+    }
+
+    /**
+     * Enables or disables per-request decision graph tracing.
+     *
+     * <p>When enabled, every node visited during graph traversal is recorded and stored
+     * in the {@link TraceStore}. Intended for development use only.
+     *
+     * @param tracingEnabled {@code true} to enable tracing
+     */
+    public void setTracingEnabled(boolean tracingEnabled) {
+        this.tracingEnabled = tracingEnabled;
+    }
+
+    /**
+     * Returns the {@link TraceStore} that accumulates per-request traces.
+     *
+     * <p>Pass this to {@code TraceViewerEndpoint} (from {@code kotowari-restful-devel})
+     * to expose a browser-accessible trace viewer.
+     *
+     * @return the trace store
+     */
+    public TraceStore getTraceStore() {
+        return engine.getTraceStore();
     }
 }

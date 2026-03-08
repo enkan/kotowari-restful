@@ -72,6 +72,7 @@ public final class Decision implements Node<Node<?>> {
             case String s -> { context.setMessage(new SimpleMessage(s)); yield true; }
             default -> true;
         };
+        context.recordTrace(point, "DECISION", result);
         return result ? thenNode : elseNode;
     }
 

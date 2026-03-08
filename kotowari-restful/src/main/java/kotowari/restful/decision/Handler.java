@@ -47,6 +47,7 @@ public final class Handler implements Node<ApiResponse> {
     @Override
     public ApiResponse execute(RestContext context) {
         LOG.debug("{}", point);
+        context.recordTrace(point, "HANDLER", null);
         Object message = defaultMessage;
         Function<RestContext, ?> ftest = context.getResourceFunction(point);
         if (ftest != null) {
