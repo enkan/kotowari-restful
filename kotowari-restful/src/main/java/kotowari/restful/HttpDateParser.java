@@ -5,6 +5,7 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.DateTimeParseException;
+import java.time.format.ResolverStyle;
 import java.time.format.SignStyle;
 import java.time.format.TextStyle;
 import java.time.temporal.ChronoField;
@@ -51,6 +52,7 @@ final class HttpDateParser {
             .appendValue(ChronoField.SECOND_OF_MINUTE, 2)
             .appendLiteral(" GMT")
             .toFormatter(Locale.US)
+            .withResolverStyle(ResolverStyle.STRICT)
             .withZone(ZoneOffset.UTC);
 
     /**
@@ -75,6 +77,7 @@ final class HttpDateParser {
             .appendValue(ChronoField.SECOND_OF_MINUTE, 2)
             .appendLiteral(" GMT")
             .toFormatter(Locale.US)
+            .withResolverStyle(ResolverStyle.STRICT)
             .withZone(ZoneOffset.UTC);
 
     /**
@@ -98,6 +101,7 @@ final class HttpDateParser {
             .appendLiteral(' ')
             .appendValue(ChronoField.YEAR, 4)
             .toFormatter(Locale.US)
+            .withResolverStyle(ResolverStyle.STRICT)
             .withZone(ZoneOffset.UTC);
 
     /** All formatters in priority order (IMF-fixdate, RFC 850, asctime). */
@@ -110,19 +114,26 @@ final class HttpDateParser {
      *
      * <p>Tries IMF-fixdate, RFC 850, and asctime formats in order. Returns
      * {@link Optional#empty()} if the value is {@code null}, blank, or does
-     * not match any recognized format. All three formatters enforce a literal
+     * not match any recognized format. Leading and trailing whitespace (OWS)
+     * is stripped before parsing. All three formatters enforce a literal
      * "GMT" suffix (or implicit UTC for asctime), so non-GMT values are rejected.
+     * All formatters use {@link ResolverStyle#STRICT} to reject invalid calendar
+     * dates (e.g. Feb 30).
      *
      * @param httpDate the HTTP-date header value
      * @return the parsed instant, or empty if the value is not a valid HTTP-date
      */
     static Optional<Instant> parse(String httpDate) {
-        if (httpDate == null || httpDate.isBlank()) {
+        if (httpDate == null) {
+            return Optional.empty();
+        }
+        String trimmed = httpDate.strip();
+        if (trimmed.isEmpty()) {
             return Optional.empty();
         }
         for (DateTimeFormatter fmt : FORMATS) {
             try {
-                return Optional.of(Instant.from(fmt.parse(httpDate)));
+                return Optional.of(Instant.from(fmt.parse(trimmed)));
             } catch (DateTimeParseException ignored) {
                 // try next format
             }
