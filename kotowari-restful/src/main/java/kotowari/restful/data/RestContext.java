@@ -6,6 +6,7 @@ import kotowari.restful.DecisionPoint;
 import kotowari.restful.trace.RequestTrace;
 import kotowari.restful.trace.TraceEntry;
 
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -41,6 +42,32 @@ import java.util.function.Function;
  * @author kawasima
  */
 public class RestContext {
+    /**
+     * Key for the parsed {@code If-Modified-Since} date, stored by the
+     * {@code IF_MODIFIED_SINCE_VALID_DATE} decision node when the header
+     * contains a valid HTTP-date.
+     *
+     * <p>Resource classes that override {@code MODIFIED_SINCE} can retrieve
+     * this value to compare against the resource's last modification time:
+     * <pre>{@code
+     * @Decision(MODIFIED_SINCE)
+     * public boolean modifiedSince(RestContext ctx) {
+     *     Instant clientDate = ctx.get(RestContext.IF_MODIFIED_SINCE_DATE).orElseThrow();
+     *     return myLastModified.isAfter(clientDate);
+     * }
+     * }</pre>
+     */
+    public static final ContextKey<Instant> IF_MODIFIED_SINCE_DATE =
+            ContextKey.of("ifModifiedSinceDate", Instant.class);
+
+    /**
+     * Key for the parsed {@code If-Unmodified-Since} date, stored by the
+     * {@code IF_UNMODIFIED_SINCE_VALID_DATE} decision node when the header
+     * contains a valid HTTP-date.
+     */
+    public static final ContextKey<Instant> IF_UNMODIFIED_SINCE_DATE =
+            ContextKey.of("ifUnmodifiedSinceDate", Instant.class);
+
     private final Resource resource;
     private final HttpRequest request;
     private final Map<ContextKey<?>, Object> values;

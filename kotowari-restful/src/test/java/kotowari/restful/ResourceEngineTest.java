@@ -316,4 +316,100 @@ class ResourceEngineTest {
         assertThat(response.getStatus()).isEqualTo(303);
         assertThat(response.getHeaders().get("Location")).isEqualTo("/created-resource");
     }
+
+    // ── If-Modified-Since tests ───────────────────────────────────────────
+
+    @Test
+    void ifModifiedSinceValidDate_notModified_returns304() {
+        DefaultResource resource = new DefaultResource() {
+            @Override
+            public java.util.function.Function<kotowari.restful.data.RestContext, ?> getFunction(DecisionPoint point) {
+                if (point == DecisionPoint.MODIFIED_SINCE) {
+                    return ctx -> false; // resource NOT modified since that date → 304
+                }
+                return super.getFunction(point);
+            }
+        };
+        HttpRequest request = builder(new DefaultHttpRequest())
+                .set(HttpRequest::setRequestMethod, "GET")
+                .set(HttpRequest::setContentType, "application/json")
+                .set(HttpRequest::setHeaders, Headers.of("if-modified-since", "Sun, 06 Nov 1994 08:49:37 GMT"))
+                .build();
+
+        ApiResponse response = resourceEngine.run(resource, request);
+
+        assertThat(response.getStatus()).isEqualTo(304);
+    }
+
+    @Test
+    void ifModifiedSinceValidDate_modified_returns200() {
+        DefaultResource resource = new DefaultResource() {
+            @Override
+            public java.util.function.Function<kotowari.restful.data.RestContext, ?> getFunction(DecisionPoint point) {
+                if (point == DecisionPoint.MODIFIED_SINCE) {
+                    return ctx -> true; // resource IS modified → proceed normally
+                }
+                return super.getFunction(point);
+            }
+        };
+        HttpRequest request = builder(new DefaultHttpRequest())
+                .set(HttpRequest::setRequestMethod, "GET")
+                .set(HttpRequest::setContentType, "application/json")
+                .set(HttpRequest::setHeaders, Headers.of("if-modified-since", "Sun, 06 Nov 1994 08:49:37 GMT"))
+                .build();
+
+        ApiResponse response = resourceEngine.run(resource, request);
+
+        assertThat(response.getStatus()).isEqualTo(200);
+    }
+
+    @Test
+    void ifModifiedSinceInvalidDate_skipsValidation_returns200() {
+        HttpRequest request = builder(new DefaultHttpRequest())
+                .set(HttpRequest::setRequestMethod, "GET")
+                .set(HttpRequest::setContentType, "application/json")
+                .set(HttpRequest::setHeaders, Headers.of("if-modified-since", "not-a-date"))
+                .build();
+
+        ApiResponse response = resourceEngine.run(new DefaultResource(), request);
+
+        assertThat(response.getStatus()).isEqualTo(200);
+    }
+
+    // ── If-Unmodified-Since tests ─────────────────────────────────────────
+
+    @Test
+    void ifUnmodifiedSinceValidDate_modified_returns412() {
+        DefaultResource resource = new DefaultResource() {
+            @Override
+            public java.util.function.Function<kotowari.restful.data.RestContext, ?> getFunction(DecisionPoint point) {
+                if (point == DecisionPoint.UNMODIFIED_SINCE) {
+                    return ctx -> true; // resource WAS modified since that date → precondition failed
+                }
+                return super.getFunction(point);
+            }
+        };
+        HttpRequest request = builder(new DefaultHttpRequest())
+                .set(HttpRequest::setRequestMethod, "GET")
+                .set(HttpRequest::setContentType, "application/json")
+                .set(HttpRequest::setHeaders, Headers.of("if-unmodified-since", "Sun, 06 Nov 1994 08:49:37 GMT"))
+                .build();
+
+        ApiResponse response = resourceEngine.run(resource, request);
+
+        assertThat(response.getStatus()).isEqualTo(412);
+    }
+
+    @Test
+    void ifUnmodifiedSinceInvalidDate_skipsValidation_returns200() {
+        HttpRequest request = builder(new DefaultHttpRequest())
+                .set(HttpRequest::setRequestMethod, "GET")
+                .set(HttpRequest::setContentType, "application/json")
+                .set(HttpRequest::setHeaders, Headers.of("if-unmodified-since", "garbage"))
+                .build();
+
+        ApiResponse response = resourceEngine.run(new DefaultResource(), request);
+
+        assertThat(response.getStatus()).isEqualTo(200);
+    }
 }
