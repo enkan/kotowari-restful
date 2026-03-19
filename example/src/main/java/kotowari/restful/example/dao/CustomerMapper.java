@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static net.unit8.raoh.ObjectDecoders.*;
 import static net.unit8.raoh.jooq.JooqRecordDecoders.*;
 
 /**
@@ -86,7 +87,7 @@ public class CustomerMapper {
             field("first_name", STRING50),
             field("middle_name", nullable(STRING50)).map(Optional::ofNullable),
             field("last_name", STRING100)
-    ).apply(PersonalName::new)::decode;
+    ).map(PersonalName::new)::decode;
 
     /**
      * Builds an {@link EmailContactInfo} from the {@code label} and
@@ -95,7 +96,7 @@ public class CustomerMapper {
     private static final JooqRecordDecoder<EmailContactInfo> EMAIL_CONTACT_DECODER = combine(
             field("label", STRING50),
             field("email_address", EMAIL_ADDR)
-    ).apply(EmailContactInfo::new)::decode;
+    ).map(EmailContactInfo::new)::decode;
 
     /**
      * Builds a {@link PostalContactInfo} from the {@code label}, {@code address1}
@@ -110,7 +111,7 @@ public class CustomerMapper {
             field("city", STRING50),
             field("state", STRING50),
             field("zip_code", ZIP)
-    ).apply(PostalContactInfo::new)::decode;
+    ).map(PostalContactInfo::new)::decode;
 
     // ========================================================================
     // Discriminating decoder — dispatches on the type column
@@ -165,7 +166,7 @@ public class CustomerMapper {
      * into a single decoder that reads both from the same {@link Record}.
      */
     private static final JooqRecordDecoder<TaggedContact> TAGGED_CONTACT_DECODER =
-            combine(CONTACT_METHOD_DECODER, IS_PRIMARY_DECODER).apply(TaggedContact::new)::decode;
+            combine(CONTACT_METHOD_DECODER, IS_PRIMARY_DECODER).map(TaggedContact::new)::decode;
 
     /** Decodes the {@code id} column as a long. */
     private static final JooqRecordDecoder<Long> ID_DECODER = field("id", long_());
@@ -176,7 +177,7 @@ public class CustomerMapper {
      * the same {@link Record}.
      */
     private static final JooqRecordDecoder<TaggedContactWithId> TAGGED_CONTACT_WITH_ID_DECODER =
-            combine(ID_DECODER, CONTACT_METHOD_DECODER, IS_PRIMARY_DECODER).apply(TaggedContactWithId::new)::decode;
+            combine(ID_DECODER, CONTACT_METHOD_DECODER, IS_PRIMARY_DECODER).map(TaggedContactWithId::new)::decode;
 
     /**
      * Partitions a list of contact_method rows into one primary and zero or more
