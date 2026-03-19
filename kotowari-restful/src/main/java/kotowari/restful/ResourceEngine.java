@@ -295,7 +295,9 @@ public class ResourceEngine {
             methodDelete,
             handleNotModified);
         Node<?> ifModifiedSinceValidDate = decision(IF_MODIFIED_SINCE_VALID_DATE,
-            context -> null,
+            context -> HttpDateParser.parse(context.getRequest().getHeaders().get("if-modified-since"))
+                    .map(date -> { context.put(RestContext.IF_MODIFIED_SINCE_DATE, date); return true; })
+                    .orElse(null),
             modifiedSince,
             methodDelete);
         Node<?> ifModifiedSinceExists = decision(IF_MODIFIED_SINCE_EXISTS,
@@ -322,7 +324,9 @@ public class ResourceEngine {
             ifNoneMatchExists);
 
         Node<?> ifUnmodifiedSinceValidDate = decision(IF_UNMODIFIED_SINCE_VALID_DATE,
-            context -> null,
+            context -> HttpDateParser.parse(context.getRequest().getHeaders().get("if-unmodified-since"))
+                    .map(date -> { context.put(RestContext.IF_UNMODIFIED_SINCE_DATE, date); return true; })
+                    .orElse(null),
             unmodifiedSince,
             ifNoneMatchExists);
 
