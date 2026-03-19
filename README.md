@@ -4,7 +4,7 @@
 [![License](https://img.shields.io/badge/License-EPL%202.0-blue.svg)](https://www.eclipse.org/legal/epl-2.0/)
 [![Java](https://img.shields.io/badge/Java-25%2B-orange.svg)](https://jdk.java.net/)
 
-A declarative RESTful API framework for Java, built on [enkan](https://github.com/enkan/enkan) / [kotowari](https://github.com/enkan/enkan).
+A declarative RESTful API framework for Java, built on [enkan](https://github.com/enkan/enkan) / [kotowari](https://github.com/enkan/enkan) (a lightweight middleware-based web framework).
 
 ## Why kotowari-restful?
 
@@ -17,7 +17,7 @@ A declarative RESTful API framework for Java, built on [enkan](https://github.co
 ## Requirements
 
 - Java 25+
-- enkan/kotowari 0.13.0+
+- enkan/kotowari 0.14.0+
 
 ## Project Structure
 
@@ -39,7 +39,7 @@ Add the following dependency to your `pom.xml`:
 <dependency>
     <groupId>net.unit8.enkan</groupId>
     <artifactId>kotowari-restful</artifactId>
-    <version>0.13.0</version>
+    <version>0.14.0</version>
 </dependency>
 ```
 
@@ -49,7 +49,7 @@ For development-time request tracing, also add:
 <dependency>
     <groupId>net.unit8.enkan</groupId>
     <artifactId>kotowari-restful-devel</artifactId>
-    <version>0.13.1-SNAPSHOT</version>
+    <version>0.14.0</version>
 </dependency>
 ```
 
@@ -61,7 +61,9 @@ Annotate methods with `@Decision` to customize specific points in the decision g
 
 ```java
 import kotowari.restful.Decision;
+import kotowari.restful.DecisionPoint;
 import kotowari.restful.resource.AllowedMethods;
+
 import static kotowari.restful.DecisionPoint.*;
 
 @AllowedMethods({"GET", "POST"})
@@ -126,10 +128,10 @@ The decision graph evaluates each request through a fixed sequence of decision p
 | `PUT` | `true` | Executes the PUT action |
 | `PATCH` | `true` | Executes the PATCH action |
 | `DELETE` | `true` | Executes the DELETE action |
-| `HANDLE_OK` | `"ok"` | Response body for 200 |
-| `HANDLE_CREATED` | `null` | Response body for 201 |
-| `HANDLE_NOT_FOUND` | `"Resource not found"` | Response body for 404 |
-| `HANDLE_EXCEPTION` | `null` | Response body for 500; `context.getException()` holds the thrown exception |
+| `HANDLE_OK` | `"OK"` | Response body for 200 |
+| `HANDLE_CREATED` | `null` | Response body for 201 (empty body) |
+| `HANDLE_NOT_FOUND` | `"Resource not found."` | Response body for 404 |
+| `HANDLE_EXCEPTION` | `"Internal server error."` | Response body for 500; `context.getException()` holds the thrown exception |
 
 ### Per-HTTP-method dispatch
 
@@ -308,6 +310,8 @@ dot -Tsvg kotowari-restful-devel/src/main/resources/kotowari/restful/trace/decis
 The following example shows a collection resource that supports paginated listing (`GET`) and creation (`POST`).
 Input is decoded and validated using Raoh decoders; results are persisted via jOOQ with explicit transactions.
 
+> **Note:** `DSLContext` injection requires a custom `ParameterInjector<DSLContext>` registered in your middleware stack. See the [example application](example/) for a complete working setup.
+
 ```java
 @AllowedMethods({"GET", "POST"})
 public class ArticlesResource {
@@ -315,7 +319,12 @@ public class ArticlesResource {
     static final ContextKey<ArticleSearchParams> SEARCH_PARAMS = ContextKey.of(ArticleSearchParams.class);
     static final ContextKey<Article> ARTICLE = ContextKey.of(Article.class);
 
-    // Raoh decoder: validates and maps JSON → Article
+    // Raoh decoders: validate and map input
+    private static final Decoder<Parameters, ArticleSearchParams> SEARCH_PARAMS_DECODER = combine(
+            field("offset", optional(integer()).map(opt -> opt.orElse(0))),
+            field("limit",  optional(integer().min(1).max(100)).map(opt -> opt.orElse(20)))
+    ).apply(ArticleSearchParams::new)::decode;
+
     private static final JsonDecoder<Article> ARTICLE_DECODER = combine(
             field("title", string().trim().nonBlank().maxLength(200).map(String::new)),
             field("publishedAt", isoLocalDate())

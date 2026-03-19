@@ -5,7 +5,7 @@
 
     <groupId>net.unit8.enkan</groupId>
     <artifactId>kotowari-restful-example</artifactId>
-    <version>0.14.0-SNAPSHOT</version>
+    <version>0-SNAPSHOT</version>
     <packaging>jar</packaging>
     <name>kotowari-restful-example</name>
     <description>Example application for kotowari-restful</description>
@@ -44,12 +44,12 @@
         <dependency>
             <groupId>net.unit8.enkan</groupId>
             <artifactId>kotowari-restful</artifactId>
-            <version>0.13.1-SNAPSHOT</version>
+            <version>0.14.0</version>
         </dependency>
         <dependency>
             <groupId>net.unit8.enkan</groupId>
             <artifactId>kotowari-restful-devel</artifactId>
-            <version>0.13.1-SNAPSHOT</version>
+            <version>0.14.0</version>
         </dependency>
         <dependency>
             <groupId>net.unit8.enkan</groupId>
