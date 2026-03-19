@@ -6,7 +6,6 @@ import kotowari.restful.DecisionPoint;
 import kotowari.restful.trace.RequestTrace;
 import kotowari.restful.trace.TraceEntry;
 
-import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -52,26 +51,22 @@ public class RestContext {
      * <pre>{@code
      * @Decision(MODIFIED_SINCE)
      * public boolean modifiedSince(RestContext ctx) {
-     *     Instant clientDate = ctx.get(RestContext.IF_MODIFIED_SINCE_DATE).orElseThrow();
+     *     Instant clientDate = ctx.get(RestContext.IF_MODIFIED_SINCE_DATE)
+     *             .map(HttpDate::value).orElseThrow();
      *     return myLastModified.isAfter(clientDate);
      * }
      * }</pre>
-     *
-     * <p><b>Note:</b> Both this key and {@link #IF_UNMODIFIED_SINCE_DATE} share
-     * the {@code Instant} type in the type-based index. Always use the explicit
-     * {@link ContextKey} via {@link #get(ContextKey)} rather than relying on
-     * type-based parameter injection for {@code Instant}.
      */
-    public static final ContextKey<Instant> IF_MODIFIED_SINCE_DATE =
-            ContextKey.of("ifModifiedSinceDate", Instant.class);
+    public static final ContextKey<HttpDate> IF_MODIFIED_SINCE_DATE =
+            ContextKey.of("ifModifiedSinceDate", HttpDate.class);
 
     /**
      * Key for the parsed {@code If-Unmodified-Since} date, stored by the
      * {@code IF_UNMODIFIED_SINCE_VALID_DATE} decision node when the header
      * contains a valid HTTP-date.
      */
-    public static final ContextKey<Instant> IF_UNMODIFIED_SINCE_DATE =
-            ContextKey.of("ifUnmodifiedSinceDate", Instant.class);
+    public static final ContextKey<HttpDate> IF_UNMODIFIED_SINCE_DATE =
+            ContextKey.of("ifUnmodifiedSinceDate", HttpDate.class);
 
     private final Resource resource;
     private final HttpRequest request;

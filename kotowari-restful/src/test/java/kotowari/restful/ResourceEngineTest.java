@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
 import java.util.Set;
+import kotowari.restful.data.HttpDate;
 
 import static enkan.util.BeanBuilder.builder;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -322,7 +323,7 @@ class ResourceEngineTest {
 
     @Test
     void ifModifiedSinceValidDate_notModified_returns304() {
-        Instant[] captured = new Instant[1];
+        HttpDate[] captured = new HttpDate[1];
         DefaultResource resource = new DefaultResource() {
             @Override
             public java.util.function.Function<kotowari.restful.data.RestContext, ?> getFunction(DecisionPoint point) {
@@ -344,7 +345,8 @@ class ResourceEngineTest {
         ApiResponse response = resourceEngine.run(resource, request);
 
         assertThat(response.getStatus()).isEqualTo(304);
-        assertThat(captured[0]).isEqualTo(Instant.parse("1994-11-06T08:49:37Z"));
+        assertThat(captured[0]).isNotNull();
+        assertThat(captured[0].value()).isEqualTo(Instant.parse("1994-11-06T08:49:37Z"));
     }
 
     @Test
@@ -370,6 +372,33 @@ class ResourceEngineTest {
     }
 
     @Test
+    void ifModifiedSince_ignoredForPost() {
+        // RFC 9110 §13.1.3: If-Modified-Since must be ignored for non-GET/HEAD methods.
+        DefaultResource resource = new DefaultResource() {
+            @Override
+            public java.util.function.Function<kotowari.restful.data.RestContext, ?> getFunction(DecisionPoint point) {
+                if (point == DecisionPoint.METHOD_ALLOWED) {
+                    return DefaultResource.testRequestMethod("GET", "HEAD", "POST");
+                }
+                if (point == DecisionPoint.MODIFIED_SINCE) {
+                    return ctx -> false; // would return 304 if reached
+                }
+                return super.getFunction(point);
+            }
+        };
+        HttpRequest request = builder(new DefaultHttpRequest())
+                .set(HttpRequest::setRequestMethod, "POST")
+                .set(HttpRequest::setContentType, "application/json")
+                .set(HttpRequest::setHeaders, Headers.of("if-modified-since", "Sun, 06 Nov 1994 08:49:37 GMT"))
+                .build();
+
+        ApiResponse response = resourceEngine.run(resource, request);
+
+        // POST should not trigger 304 even with a valid If-Modified-Since header
+        assertThat(response.getStatus()).isNotEqualTo(304);
+    }
+
+    @Test
     void ifModifiedSinceInvalidDate_skipsValidation_returns200() {
         HttpRequest request = builder(new DefaultHttpRequest())
                 .set(HttpRequest::setRequestMethod, "GET")
@@ -386,7 +415,7 @@ class ResourceEngineTest {
 
     @Test
     void ifUnmodifiedSinceValidDate_modified_returns412() {
-        Instant[] captured = new Instant[1];
+        HttpDate[] captured = new HttpDate[1];
         DefaultResource resource = new DefaultResource() {
             @Override
             public java.util.function.Function<kotowari.restful.data.RestContext, ?> getFunction(DecisionPoint point) {
@@ -408,7 +437,8 @@ class ResourceEngineTest {
         ApiResponse response = resourceEngine.run(resource, request);
 
         assertThat(response.getStatus()).isEqualTo(412);
-        assertThat(captured[0]).isEqualTo(Instant.parse("1994-11-06T08:49:37Z"));
+        assertThat(captured[0]).isNotNull();
+        assertThat(captured[0].value()).isEqualTo(Instant.parse("1994-11-06T08:49:37Z"));
     }
 
     @Test
