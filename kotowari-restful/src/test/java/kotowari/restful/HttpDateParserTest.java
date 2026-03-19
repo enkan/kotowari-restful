@@ -70,4 +70,18 @@ class HttpDateParserTest {
     void parseNonGmtTimezone() {
         assertThat(HttpDateParser.parse("Sun, 06 Nov 1994 08:49:37 PST")).isEmpty();
     }
+
+    /** Leading/trailing OWS should be stripped before parsing. */
+    @Test
+    void parseWithSurroundingWhitespace() {
+        Optional<Instant> result = HttpDateParser.parse("  Sun, 06 Nov 1994 08:49:37 GMT  ");
+        assertThat(result).isPresent();
+        assertThat(result.get()).isEqualTo(Instant.parse("1994-11-06T08:49:37Z"));
+    }
+
+    /** Invalid calendar date (Feb 30) should be rejected with STRICT resolver. */
+    @Test
+    void parseInvalidCalendarDate() {
+        assertThat(HttpDateParser.parse("Thu, 30 Feb 1994 08:49:37 GMT")).isEmpty();
+    }
 }
