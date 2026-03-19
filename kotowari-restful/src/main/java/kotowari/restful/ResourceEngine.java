@@ -50,6 +50,8 @@ import static kotowari.restful.decision.DecisionFactory.*;
  *       (RFC 7231 §6.5.5, RFC 9110 §9.3.7).</li>
  *   <li>HEAD responses and 204/304 responses have their body cleared
  *       (RFC 7231 §4.3.2, RFC 7232 §4.1, RFC 9110 §15.3.5).</li>
+ *   <li>304 responses have {@code Content-Length}, {@code Content-Range}, and
+ *       {@code Trailer} headers removed (RFC 9110 §15.4.5).</li>
  * </ul>
  *
  * @author kawasima
@@ -115,6 +117,12 @@ public class ResourceEngine {
         }
         if ("HEAD".equalsIgnoreCase(request.getRequestMethod()) || status == 204 || status == 304) {
             response.setBody(null);
+        }
+        // RFC 9110 §15.4.5: 304 MUST NOT contain Content-Length, Content-Range, or Trailer.
+        if (status == 304) {
+            response.getHeaders().remove("Content-Length");
+            response.getHeaders().remove("Content-Range");
+            response.getHeaders().remove("Trailer");
         }
         if (tracingEnabled) {
             String traceId = UUID.randomUUID().toString().replace("-", "").substring(0, 8);
