@@ -37,7 +37,7 @@ class HttpDateParserTest {
         assertThat(result.get()).isEqualTo(Instant.parse("1994-11-06T08:49:37Z"));
     }
 
-    /** asctime with two-digit day: {@code Mon Nov 11 08:49:37 1994} */
+    /** asctime with two-digit day: {@code Fri Nov 11 08:49:37 1994} */
     @Test
     void parseAsctimeTwoDigitDay() {
         Optional<Instant> result = HttpDateParser.parse("Fri Nov 11 08:49:37 1994");
@@ -63,5 +63,11 @@ class HttpDateParserTest {
     @Test
     void parseInvalid() {
         assertThat(HttpDateParser.parse("not-a-date")).isEmpty();
+    }
+
+    /** Non-GMT timezone must be rejected per RFC 7231 §7.1.1.1. */
+    @Test
+    void parseNonGmtTimezone() {
+        assertThat(HttpDateParser.parse("Sun, 06 Nov 1994 08:49:37 PST")).isEmpty();
     }
 }

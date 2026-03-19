@@ -2,12 +2,14 @@ package kotowari.restful;
 
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.DateTimeParseException;
 import java.time.format.SignStyle;
 import java.time.format.TextStyle;
 import java.time.temporal.ChronoField;
+import java.time.temporal.TemporalAccessor;
 import java.util.Locale;
 import java.util.Optional;
 
@@ -86,8 +88,9 @@ final class HttpDateParser {
      * Parses an HTTP-date string into an {@link Instant}.
      *
      * <p>Tries IMF-fixdate, RFC 850, and asctime formats in order. Returns
-     * {@link Optional#empty()} if the value is {@code null}, blank, or does
-     * not match any recognized format.
+     * {@link Optional#empty()} if the value is {@code null}, blank, does
+     * not match any recognized format, or specifies a timezone other than GMT
+     * (RFC 7231 §7.1.1.1 requires GMT).
      *
      * @param httpDate the HTTP-date header value
      * @return the parsed instant, or empty if the value is not a valid HTTP-date
@@ -96,13 +99,24 @@ final class HttpDateParser {
         if (httpDate == null || httpDate.isBlank()) {
             return Optional.empty();
         }
-        for (DateTimeFormatter fmt : new DateTimeFormatter[]{IMF_FIXDATE, RFC_850, ASCTIME}) {
+        // IMF-fixdate and RFC 850 include a timezone; asctime is implicitly UTC.
+        for (DateTimeFormatter fmt : new DateTimeFormatter[]{IMF_FIXDATE, RFC_850}) {
             try {
-                return Optional.of(Instant.from(fmt.parse(httpDate)));
+                TemporalAccessor parsed = fmt.parse(httpDate);
+                ZonedDateTime zdt = ZonedDateTime.from(parsed);
+                if (!zdt.getOffset().equals(ZoneOffset.UTC)) {
+                    return Optional.empty();
+                }
+                return Optional.of(zdt.toInstant());
             } catch (DateTimeParseException ignored) {
                 // try next format
             }
         }
-        return Optional.empty();
+        // asctime has no timezone; ASCTIME formatter uses UTC by default.
+        try {
+            return Optional.of(Instant.from(ASCTIME.parse(httpDate)));
+        } catch (DateTimeParseException ignored) {
+            return Optional.empty();
+        }
     }
 }
