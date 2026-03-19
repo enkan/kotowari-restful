@@ -295,9 +295,14 @@ public class ResourceEngine {
             methodDelete,
             handleNotModified);
         Node<?> ifModifiedSinceValidDate = decision(IF_MODIFIED_SINCE_VALID_DATE,
-            context -> HttpDateParser.parse(context.getRequest().getHeaders().get("if-modified-since"))
-                    .map(date -> { context.put(RestContext.IF_MODIFIED_SINCE_DATE, new kotowari.restful.data.HttpDate(date)); return true; })
-                    .orElse(null),
+            context -> {
+                var parsed = HttpDateParser.parse(context.getRequest().getHeaders().get("if-modified-since"));
+                if (parsed.isPresent()) {
+                    context.put(RestContext.IF_MODIFIED_SINCE_DATE, new kotowari.restful.data.HttpDate(parsed.get()));
+                    return true;
+                }
+                return null;
+            },
             modifiedSince,
             methodDelete);
         // RFC 9110 §13.1.3: If-Modified-Since is only applicable to GET and HEAD.
@@ -329,9 +334,14 @@ public class ResourceEngine {
             ifNoneMatchExists);
 
         Node<?> ifUnmodifiedSinceValidDate = decision(IF_UNMODIFIED_SINCE_VALID_DATE,
-            context -> HttpDateParser.parse(context.getRequest().getHeaders().get("if-unmodified-since"))
-                    .map(date -> { context.put(RestContext.IF_UNMODIFIED_SINCE_DATE, new kotowari.restful.data.HttpDate(date)); return true; })
-                    .orElse(null),
+            context -> {
+                var parsed = HttpDateParser.parse(context.getRequest().getHeaders().get("if-unmodified-since"));
+                if (parsed.isPresent()) {
+                    context.put(RestContext.IF_UNMODIFIED_SINCE_DATE, new kotowari.restful.data.HttpDate(parsed.get()));
+                    return true;
+                }
+                return null;
+            },
             unmodifiedSince,
             ifNoneMatchExists);
 
