@@ -539,4 +539,57 @@ class ResourceEngineTest {
 
         assertThat(response.getHeaders().get("Vary")).isNull();
     }
+
+    @Test
+    void varyHeaderMergesWithExistingValue() {
+        // Resource that pre-sets Vary: Origin
+        DefaultResource resource = new DefaultResource() {
+            @Override
+            public java.util.function.Function<kotowari.restful.data.RestContext, ?> getFunction(DecisionPoint point) {
+                if (point == DecisionPoint.HANDLE_OK) {
+                    return ctx -> {
+                        ctx.addHeader("Vary", "Origin");
+                        return "ok";
+                    };
+                }
+                return super.getFunction(point);
+            }
+        };
+        HttpRequest request = builder(new DefaultHttpRequest())
+                .set(HttpRequest::setRequestMethod, "GET")
+                .set(HttpRequest::setContentType, "application/json")
+                .set(HttpRequest::setHeaders, Headers.of("accept", "application/json"))
+                .build();
+
+        ApiResponse response = resourceEngine.run(resource, request);
+
+        assertThat(response.getHeaders().get("Vary")).isEqualTo("Origin, Accept");
+    }
+
+    @Test
+    void varyStarIsPreserved() {
+        // Resource that pre-sets Vary: *
+        DefaultResource resource = new DefaultResource() {
+            @Override
+            public java.util.function.Function<kotowari.restful.data.RestContext, ?> getFunction(DecisionPoint point) {
+                if (point == DecisionPoint.HANDLE_OK) {
+                    return ctx -> {
+                        ctx.addHeader("Vary", "*");
+                        return "ok";
+                    };
+                }
+                return super.getFunction(point);
+            }
+        };
+        HttpRequest request = builder(new DefaultHttpRequest())
+                .set(HttpRequest::setRequestMethod, "GET")
+                .set(HttpRequest::setContentType, "application/json")
+                .set(HttpRequest::setHeaders, Headers.of("accept", "application/json"))
+                .build();
+
+        ApiResponse response = resourceEngine.run(resource, request);
+
+        // Vary: * must not be overwritten
+        assertThat(response.getHeaders().get("Vary")).isEqualTo("*");
+    }
 }
