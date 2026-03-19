@@ -2,14 +2,12 @@ package kotowari.restful;
 
 import java.time.Instant;
 import java.time.ZoneOffset;
-import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.DateTimeParseException;
 import java.time.format.SignStyle;
 import java.time.format.TextStyle;
 import java.time.temporal.ChronoField;
-import java.time.temporal.TemporalAccessor;
 import java.util.Locale;
 import java.util.Optional;
 
@@ -31,15 +29,35 @@ import java.util.Optional;
  */
 final class HttpDateParser {
 
-    /** IMF-fixdate: {@code Sun, 06 Nov 1994 08:49:37 GMT} */
-    private static final DateTimeFormatter IMF_FIXDATE =
-            DateTimeFormatter.RFC_1123_DATE_TIME;
+    /**
+     * IMF-fixdate: {@code Sun, 06 Nov 1994 08:49:37 GMT}.
+     *
+     * <p>Enforces a literal "GMT" suffix rather than accepting arbitrary timezones
+     * (RFC 7231 §7.1.1.1 requires GMT).
+     */
+    private static final DateTimeFormatter IMF_FIXDATE = new DateTimeFormatterBuilder()
+            .appendText(ChronoField.DAY_OF_WEEK, TextStyle.SHORT)
+            .appendLiteral(", ")
+            .appendValue(ChronoField.DAY_OF_MONTH, 2)
+            .appendLiteral(' ')
+            .appendText(ChronoField.MONTH_OF_YEAR, TextStyle.SHORT)
+            .appendLiteral(' ')
+            .appendValue(ChronoField.YEAR, 4)
+            .appendLiteral(' ')
+            .appendValue(ChronoField.HOUR_OF_DAY, 2)
+            .appendLiteral(':')
+            .appendValue(ChronoField.MINUTE_OF_HOUR, 2)
+            .appendLiteral(':')
+            .appendValue(ChronoField.SECOND_OF_MINUTE, 2)
+            .appendLiteral(" GMT")
+            .toFormatter(Locale.US)
+            .withZone(ZoneOffset.UTC);
 
     /**
      * RFC 850 (obsolete): {@code Sunday, 06-Nov-94 08:49:37 GMT}.
      *
      * <p>Two-digit years are interpreted with a 50-year window: years 00–49 map
-     * to 2000–2049, years 50–99 map to 1950–1999.
+     * to 2000–2049, years 50–99 map to 1950–1999. Enforces a literal "GMT" suffix.
      */
     private static final DateTimeFormatter RFC_850 = new DateTimeFormatterBuilder()
             .appendText(ChronoField.DAY_OF_WEEK, TextStyle.FULL)
@@ -55,9 +73,9 @@ final class HttpDateParser {
             .appendValue(ChronoField.MINUTE_OF_HOUR, 2)
             .appendLiteral(':')
             .appendValue(ChronoField.SECOND_OF_MINUTE, 2)
-            .appendLiteral(' ')
-            .appendZoneId()
-            .toFormatter(Locale.US);
+            .appendLiteral(" GMT")
+            .toFormatter(Locale.US)
+            .withZone(ZoneOffset.UTC);
 
     /**
      * asctime: {@code Sun Nov  6 08:49:37 1994}.
@@ -82,15 +100,18 @@ final class HttpDateParser {
             .toFormatter(Locale.US)
             .withZone(ZoneOffset.UTC);
 
+    /** All formatters in priority order (IMF-fixdate, RFC 850, asctime). */
+    private static final DateTimeFormatter[] FORMATS = {IMF_FIXDATE, RFC_850, ASCTIME};
+
     private HttpDateParser() {}
 
     /**
      * Parses an HTTP-date string into an {@link Instant}.
      *
      * <p>Tries IMF-fixdate, RFC 850, and asctime formats in order. Returns
-     * {@link Optional#empty()} if the value is {@code null}, blank, does
-     * not match any recognized format, or specifies a timezone other than GMT
-     * (RFC 7231 §7.1.1.1 requires GMT).
+     * {@link Optional#empty()} if the value is {@code null}, blank, or does
+     * not match any recognized format. All three formatters enforce a literal
+     * "GMT" suffix (or implicit UTC for asctime), so non-GMT values are rejected.
      *
      * @param httpDate the HTTP-date header value
      * @return the parsed instant, or empty if the value is not a valid HTTP-date
@@ -99,24 +120,13 @@ final class HttpDateParser {
         if (httpDate == null || httpDate.isBlank()) {
             return Optional.empty();
         }
-        // IMF-fixdate and RFC 850 include a timezone; asctime is implicitly UTC.
-        for (DateTimeFormatter fmt : new DateTimeFormatter[]{IMF_FIXDATE, RFC_850}) {
+        for (DateTimeFormatter fmt : FORMATS) {
             try {
-                TemporalAccessor parsed = fmt.parse(httpDate);
-                ZonedDateTime zdt = ZonedDateTime.from(parsed);
-                if (!zdt.getOffset().equals(ZoneOffset.UTC)) {
-                    return Optional.empty();
-                }
-                return Optional.of(zdt.toInstant());
+                return Optional.of(Instant.from(fmt.parse(httpDate)));
             } catch (DateTimeParseException ignored) {
                 // try next format
             }
         }
-        // asctime has no timezone; ASCTIME formatter uses UTC by default.
-        try {
-            return Optional.of(Instant.from(ASCTIME.parse(httpDate)));
-        } catch (DateTimeParseException ignored) {
-            return Optional.empty();
-        }
+        return Optional.empty();
     }
 }

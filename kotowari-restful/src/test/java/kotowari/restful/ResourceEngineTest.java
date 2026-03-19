@@ -9,6 +9,7 @@ import kotowari.restful.data.Resource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.time.Instant;
 import java.util.Set;
 
 import static enkan.util.BeanBuilder.builder;
@@ -321,11 +322,15 @@ class ResourceEngineTest {
 
     @Test
     void ifModifiedSinceValidDate_notModified_returns304() {
+        Instant[] captured = new Instant[1];
         DefaultResource resource = new DefaultResource() {
             @Override
             public java.util.function.Function<kotowari.restful.data.RestContext, ?> getFunction(DecisionPoint point) {
                 if (point == DecisionPoint.MODIFIED_SINCE) {
-                    return ctx -> false; // resource NOT modified since that date → 304
+                    return ctx -> {
+                        captured[0] = ctx.get(kotowari.restful.data.RestContext.IF_MODIFIED_SINCE_DATE).orElse(null);
+                        return false; // resource NOT modified since that date → 304
+                    };
                 }
                 return super.getFunction(point);
             }
@@ -339,6 +344,7 @@ class ResourceEngineTest {
         ApiResponse response = resourceEngine.run(resource, request);
 
         assertThat(response.getStatus()).isEqualTo(304);
+        assertThat(captured[0]).isEqualTo(Instant.parse("1994-11-06T08:49:37Z"));
     }
 
     @Test
@@ -380,11 +386,15 @@ class ResourceEngineTest {
 
     @Test
     void ifUnmodifiedSinceValidDate_modified_returns412() {
+        Instant[] captured = new Instant[1];
         DefaultResource resource = new DefaultResource() {
             @Override
             public java.util.function.Function<kotowari.restful.data.RestContext, ?> getFunction(DecisionPoint point) {
                 if (point == DecisionPoint.UNMODIFIED_SINCE) {
-                    return ctx -> true; // resource WAS modified since that date → precondition failed
+                    return ctx -> {
+                        captured[0] = ctx.get(kotowari.restful.data.RestContext.IF_UNMODIFIED_SINCE_DATE).orElse(null);
+                        return true; // resource WAS modified since that date → precondition failed
+                    };
                 }
                 return super.getFunction(point);
             }
@@ -398,6 +408,7 @@ class ResourceEngineTest {
         ApiResponse response = resourceEngine.run(resource, request);
 
         assertThat(response.getStatus()).isEqualTo(412);
+        assertThat(captured[0]).isEqualTo(Instant.parse("1994-11-06T08:49:37Z"));
     }
 
     @Test

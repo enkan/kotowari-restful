@@ -56,6 +56,11 @@ public class RestContext {
      *     return myLastModified.isAfter(clientDate);
      * }
      * }</pre>
+     *
+     * <p><b>Note:</b> Both this key and {@link #IF_UNMODIFIED_SINCE_DATE} share
+     * the {@code Instant} type in the type-based index. Always use the explicit
+     * {@link ContextKey} via {@link #get(ContextKey)} rather than relying on
+     * type-based parameter injection for {@code Instant}.
      */
     public static final ContextKey<Instant> IF_MODIFIED_SINCE_DATE =
             ContextKey.of("ifModifiedSinceDate", Instant.class);
