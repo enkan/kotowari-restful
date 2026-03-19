@@ -52,6 +52,9 @@ import static kotowari.restful.decision.DecisionFactory.*;
  *       (RFC 7231 §4.3.2, RFC 7232 §4.1, RFC 9110 §§15.3.5, 15.4.5).</li>
  *   <li>304 responses have {@code Content-Length}, {@code Content-Range}, and
  *       {@code Trailer} headers removed (RFC 9110 §15.4.5).</li>
+ *   <li>A {@code Vary} header is set when content negotiation headers
+ *       ({@code Accept}, {@code Accept-Language}, {@code Accept-Charset},
+ *       {@code Accept-Encoding}) are present in the request (RFC 7231 §7.1.4).</li>
  * </ul>
  *
  * @author kawasima
@@ -123,6 +126,15 @@ public class ResourceEngine {
             response.getHeaders().remove("Content-Length");
             response.getHeaders().remove("Content-Range");
             response.getHeaders().remove("Trailer");
+        }
+        // RFC 7231 §7.1.4: set Vary when content negotiation headers are present.
+        StringJoiner vary = new StringJoiner(", ");
+        if (request.getHeaders().containsKey("accept"))          vary.add("Accept");
+        if (request.getHeaders().containsKey("accept-language")) vary.add("Accept-Language");
+        if (request.getHeaders().containsKey("accept-charset"))  vary.add("Accept-Charset");
+        if (request.getHeaders().containsKey("accept-encoding")) vary.add("Accept-Encoding");
+        if (vary.length() > 0) {
+            response.getHeaders().put("Vary", vary.toString());
         }
         if (tracingEnabled) {
             String traceId = UUID.randomUUID().toString().replace("-", "").substring(0, 8);

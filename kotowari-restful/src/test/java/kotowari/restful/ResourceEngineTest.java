@@ -496,4 +496,47 @@ class ResourceEngineTest {
 
         assertThat(response.getStatus()).isEqualTo(200);
     }
+
+    // ── Vary header tests ─────────────────────────────────────────────────
+
+    @Test
+    void varyHeaderSetWhenAcceptPresent() {
+        HttpRequest request = builder(new DefaultHttpRequest())
+                .set(HttpRequest::setRequestMethod, "GET")
+                .set(HttpRequest::setContentType, "application/json")
+                .set(HttpRequest::setHeaders, Headers.of("accept", "application/json"))
+                .build();
+
+        ApiResponse response = resourceEngine.run(new DefaultResource(), request);
+
+        assertThat(response.getHeaders().get("Vary")).isEqualTo("Accept");
+    }
+
+    @Test
+    void varyHeaderIncludesMultipleNegotiationHeaders() {
+        Headers headers = Headers.of("accept", "application/json",
+                "accept-language", "en");
+        HttpRequest request = builder(new DefaultHttpRequest())
+                .set(HttpRequest::setRequestMethod, "GET")
+                .set(HttpRequest::setContentType, "application/json")
+                .set(HttpRequest::setHeaders, headers)
+                .build();
+
+        ApiResponse response = resourceEngine.run(new DefaultResource(), request);
+
+        assertThat(response.getHeaders().get("Vary")).isEqualTo("Accept, Accept-Language");
+    }
+
+    @Test
+    void varyHeaderAbsentWhenNoNegotiationHeaders() {
+        HttpRequest request = builder(new DefaultHttpRequest())
+                .set(HttpRequest::setRequestMethod, "GET")
+                .set(HttpRequest::setContentType, "application/json")
+                .set(HttpRequest::setHeaders, Headers.empty())
+                .build();
+
+        ApiResponse response = resourceEngine.run(new DefaultResource(), request);
+
+        assertThat(response.getHeaders().get("Vary")).isNull();
+    }
 }
