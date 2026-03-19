@@ -18,6 +18,7 @@ import org.slf4j.LoggerFactory;
 import kotowari.restful.trace.TraceStore;
 
 import java.net.URI;
+import java.util.LinkedHashSet;
 import java.util.Objects;
 import java.util.Set;
 import java.util.StringJoiner;
@@ -128,13 +129,23 @@ public class ResourceEngine {
             response.getHeaders().remove("Trailer");
         }
         // RFC 7231 §7.1.4: set Vary when content negotiation headers are present.
-        StringJoiner vary = new StringJoiner(", ");
-        if (request.getHeaders().containsKey("accept"))          vary.add("Accept");
-        if (request.getHeaders().containsKey("accept-language")) vary.add("Accept-Language");
-        if (request.getHeaders().containsKey("accept-charset"))  vary.add("Accept-Charset");
-        if (request.getHeaders().containsKey("accept-encoding")) vary.add("Accept-Encoding");
-        if (vary.length() > 0) {
-            response.getHeaders().put("Vary", vary.toString());
+        // Merge with any existing Vary value set by the resource; preserve "Vary: *".
+        String existingVary = (String) response.getHeaders().get("Vary");
+        if (!"*".equals(existingVary)) {
+            Set<String> varyTokens = new LinkedHashSet<>();
+            if (existingVary != null) {
+                for (String token : existingVary.split(",")) {
+                    varyTokens.add(token.strip());
+                }
+            }
+            if (request.getHeaders().containsKey("accept"))          varyTokens.add("Accept");
+            if (request.getHeaders().containsKey("accept-language")) varyTokens.add("Accept-Language");
+            if (request.getHeaders().containsKey("accept-charset"))  varyTokens.add("Accept-Charset");
+            if (request.getHeaders().containsKey("accept-encoding")) varyTokens.add("Accept-Encoding");
+            if (!varyTokens.isEmpty()) {
+                response.getHeaders().remove("Vary");
+                response.getHeaders().put("Vary", String.join(", ", varyTokens));
+            }
         }
         if (tracingEnabled) {
             String traceId = UUID.randomUUID().toString().replace("-", "").substring(0, 8);
