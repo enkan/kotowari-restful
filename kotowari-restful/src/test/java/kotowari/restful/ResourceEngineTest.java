@@ -143,6 +143,49 @@ class ResourceEngineTest {
     }
 
     @Test
+    void notModifiedResponseStripsProhibitedHeaders() {
+        // RFC 9110 §15.4.5: 304 MUST NOT contain Content-Length, Content-Range, or Trailer.
+        DefaultResource resource = new DefaultResource() {
+            @Override
+            public java.util.function.Function<kotowari.restful.data.RestContext, ?> getFunction(kotowari.restful.DecisionPoint point) {
+                if (point == kotowari.restful.DecisionPoint.IF_NONE_MATCH_EXISTS) {
+                    return ctx -> true;
+                }
+                if (point == kotowari.restful.DecisionPoint.IF_NONE_MATCH_STAR) {
+                    return ctx -> false;
+                }
+                if (point == kotowari.restful.DecisionPoint.ETAG_MATCHES_FOR_IF_NONE) {
+                    return ctx -> true;
+                }
+                if (point == kotowari.restful.DecisionPoint.HANDLE_NOT_MODIFIED) {
+                    return ctx -> {
+                        ctx.addHeader("Content-Length", "42");
+                        ctx.addHeader("Content-Range", "bytes 0-41/42");
+                        ctx.addHeader("Trailer", "Expires");
+                        ctx.addHeader("ETag", "\"abc\""); // allowed — should survive
+                        return "body";
+                    };
+                }
+                return super.getFunction(point);
+            }
+        };
+        HttpRequest request = builder(new DefaultHttpRequest())
+                .set(HttpRequest::setRequestMethod, "GET")
+                .set(HttpRequest::setContentType, "application/json")
+                .set(HttpRequest::setHeaders, Headers.of("if-none-match", "\"abc\""))
+                .build();
+
+        ApiResponse response = resourceEngine.run(resource, request);
+
+        assertThat(response.getStatus()).isEqualTo(304);
+        assertThat(response.getBody()).isNull();
+        assertThat(response.getHeaders().get("Content-Length")).isNull();
+        assertThat(response.getHeaders().get("Content-Range")).isNull();
+        assertThat(response.getHeaders().get("Trailer")).isNull();
+        assertThat(response.getHeaders().get("ETag")).isEqualTo("\"abc\"");
+    }
+
+    @Test
     void noContentResponseHasNoBody() {
         // Resource that returns 204 by responding with entity=false after DELETE.
         // HANDLE_NO_CONTENT is overridden to return a non-null body, proving the fixup strips it.
