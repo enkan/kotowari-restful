@@ -65,12 +65,12 @@ public final class CustomerJsonDecoders {
             field("firstName", STRING50),
             optionalField("middleName", STRING50),
             field("lastName", STRING100)
-    ).apply(PersonalName::new)::decode;
+    ).map(PersonalName::new)::decode;
 
     static final JsonDecoder<EmailContactInfo> EMAIL_CONTACT_INFO = combine(
             field("label", STRING50),
             field("emailAddress", EMAIL_ADDRESS)
-    ).apply(EmailContactInfo::new)::decode;
+    ).map(EmailContactInfo::new)::decode;
 
     static final JsonDecoder<PostalContactInfo> POSTAL_CONTACT_INFO = combine(
             field("label", STRING50),
@@ -79,7 +79,7 @@ public final class CustomerJsonDecoders {
             field("city", STRING50),
             field("state", STRING50),
             field("zipCode", ZIP_CODE)
-    ).apply(PostalContactInfo::new)::decode;
+    ).map(PostalContactInfo::new)::decode;
 
     // ========================================================================
     // Discriminating decoder for ContactMethod
@@ -104,5 +104,5 @@ public final class CustomerJsonDecoders {
             field("name", PERSONAL_NAME),
             field("primaryContactMethod", CONTACT_METHOD),
             field("secondaryContactMethods", list(CONTACT_METHOD))
-    ).apply(Customer::new)::decode;
+    ).map(Customer::new)::decode;
 }

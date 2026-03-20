@@ -15,9 +15,14 @@ import kotowari.restful.decision.Node;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import kotowari.restful.trace.TraceStore;
+
+import java.net.URI;
+import java.util.LinkedHashSet;
 import java.util.Objects;
 import java.util.Set;
 import java.util.StringJoiner;
+import java.util.UUID;
 import java.util.function.Function;
 
 import static kotowari.restful.DecisionPoint.*;
@@ -40,11 +45,26 @@ import static kotowari.restful.decision.DecisionFactory.*;
  *       Resource classes may override {@code @Decision(HANDLE_EXCEPTION)} to customize.</li>
  * </ul>
  *
+ * <p>Post-graph response fixups applied by {@link #run(Resource, HttpRequest)}:
+ * <ul>
+ *   <li>405 and successful OPTIONS responses receive an {@code Allow} header
+ *       (RFC 7231 §6.5.5, RFC 9110 §9.3.7).</li>
+ *   <li>HEAD responses and 204/304 responses have their body cleared
+ *       (RFC 7231 §4.3.2, RFC 7232 §4.1, RFC 9110 §§15.3.5, 15.4.5).</li>
+ *   <li>304 responses have {@code Content-Length}, {@code Content-Range}, and
+ *       {@code Trailer} headers removed (RFC 9110 §15.4.5).</li>
+ *   <li>A {@code Vary} header is set when content negotiation headers
+ *       ({@code Accept}, {@code Accept-Language}, {@code Accept-Charset},
+ *       {@code Accept-Encoding}) are present in the request (RFC 7231 §7.1.4).</li>
+ * </ul>
+ *
  * @author kawasima
  */
 public class ResourceEngine {
     private static final Logger LOG = LoggerFactory.getLogger(ResourceEngine.class);
     private boolean printStackTrace = false;
+    private boolean tracingEnabled = false;
+    private final TraceStore traceStore = new TraceStore();
     private final Node<?> defaultGraph = createDefaultGraph();
 
     /**
@@ -90,13 +110,137 @@ public class ResourceEngine {
      * @return API response
      */
     public ApiResponse run(Resource resource, HttpRequest request) {
-        RestContext context = new RestContext(resource, request);
+        RestContext context = new RestContext(wrapResource(resource), request);
+        if (tracingEnabled) {
+            context.enableTracing();
+        }
         ApiResponse response = runDecisionGraph(context);
         int status = response.getStatus();
         if (status == 405 || ("OPTIONS".equalsIgnoreCase(request.getRequestMethod()) && status >= 200 && status < 300)) {
             response.getHeaders().put("Allow", allowHeaderValue(resource.getAllowedMethods()));
         }
+        if ("HEAD".equalsIgnoreCase(request.getRequestMethod()) || status == 204 || status == 304) {
+            response.setBody(null);
+        }
+        // RFC 9110 §15.4.5: 304 MUST NOT contain Content-Length, Content-Range, or Trailer.
+        if (status == 304) {
+            response.getHeaders().remove("Content-Length");
+            response.getHeaders().remove("Content-Range");
+            response.getHeaders().remove("Trailer");
+        }
+        // RFC 7231 §7.1.4: set Vary when content negotiation headers are present.
+        // Merge with any existing Vary value set by the resource; preserve "Vary: *".
+        String existingVary = (String) response.getHeaders().get("Vary");
+        if (!"*".equals(existingVary)) {
+            Set<String> varyTokens = new LinkedHashSet<>();
+            if (existingVary != null) {
+                for (String token : existingVary.split(",")) {
+                    varyTokens.add(token.strip());
+                }
+            }
+            if (request.getHeaders().containsKey("accept"))          varyTokens.add("Accept");
+            if (request.getHeaders().containsKey("accept-language")) varyTokens.add("Accept-Language");
+            if (request.getHeaders().containsKey("accept-charset"))  varyTokens.add("Accept-Charset");
+            if (request.getHeaders().containsKey("accept-encoding")) varyTokens.add("Accept-Encoding");
+            if (!varyTokens.isEmpty()) {
+                response.getHeaders().remove("Vary");
+                response.getHeaders().put("Vary", String.join(", ", varyTokens));
+            }
+        }
+        if (tracingEnabled) {
+            String traceId = UUID.randomUUID().toString().replace("-", "").substring(0, 8);
+            context.getTrace().ifPresent(t -> {
+                t.setMethod(request.getRequestMethod());
+                t.setUri(request.getUri());
+                traceStore.put(traceId, t);
+                LOG.info("Trace recorded: id={} method={} uri={}", traceId,
+                        request.getRequestMethod(), request.getUri());
+            });
+        }
         return response;
+    }
+
+    /**
+     * Enables or disables per-request decision graph tracing.
+     *
+     * <p>When enabled, every node visited during graph traversal is recorded in a
+     * {@link RequestTrace} and stored in the {@link TraceStore} for later retrieval.
+     * This is intended for development use only and should be disabled in production.
+     *
+     * @param tracingEnabled {@code true} to enable tracing
+     */
+    public void setTracingEnabled(boolean tracingEnabled) {
+        this.tracingEnabled = tracingEnabled;
+    }
+
+    /**
+     * Returns the {@link TraceStore} that accumulates per-request traces.
+     *
+     * @return the trace store
+     */
+    public TraceStore getTraceStore() {
+        return traceStore;
+    }
+
+    /**
+     * Wraps a resource so that:
+     * <ul>
+     *   <li>{@code AUTHORIZED} — when the resource function returns a {@link String},
+     *       it is used as the {@code WWW-Authenticate} header value and the result is
+     *       changed to {@code false} (routes to 401), satisfying RFC 7235 §4.1.</li>
+     *   <li>{@code MOVED_PERMANENTLY}, {@code MOVED_TEMPORARILY}, {@code POST_REDIRECT}
+     *       — when the resource function returns a {@link String} or {@link URI},
+     *       it is set as the {@code Location} header and the result is changed to
+     *       {@code true} (routes to the redirect handler), satisfying RFC 7231 §6.4.</li>
+     * </ul>
+     *
+     * <p>{@link Resource#getAllowedMethods()} is delegated to the original resource
+     * so that {@code ClassResource} overrides are preserved.
+     *
+     * @param resource the original resource
+     * @return a wrapped resource with header-aware function overrides
+     */
+    private static Resource wrapResource(Resource resource) {
+        return new Resource() {
+            @Override
+            public Function<RestContext, ?> getFunction(DecisionPoint point) {
+                Function<RestContext, ?> original = resource.getFunction(point);
+                return switch (point) {
+                    case AUTHORIZED -> original == null ? null : ctx -> {
+                        Object result = original.apply(ctx);
+                        if (result instanceof String challenge) {
+                            ctx.addHeader("WWW-Authenticate", challenge);
+                            return false;
+                        }
+                        return result;
+                    };
+                    case MOVED_PERMANENTLY, MOVED_TEMPORARILY, POST_REDIRECT ->
+                        original == null ? null : redirectHandler(original);
+                    default -> original;
+                };
+            }
+
+            @Override
+            public Set<String> getAllowedMethods() {
+                return resource.getAllowedMethods();
+            }
+        };
+    }
+
+    private static Function<RestContext, ?> redirectHandler(Function<RestContext, ?> original) {
+        return ctx -> {
+            Object result = original.apply(ctx);
+            String location = switch (result) {
+                case String s -> s;
+                case URI uri -> uri.toString();
+                default -> null;
+            };
+            if (location != null) {
+                ctx.addHeader("Location", location);
+                return true;
+            }
+            return result;
+        };
     }
 
     private static String allowHeaderValue(Set<String> methods) {
@@ -182,11 +326,23 @@ public class ResourceEngine {
             methodDelete,
             handleNotModified);
         Node<?> ifModifiedSinceValidDate = decision(IF_MODIFIED_SINCE_VALID_DATE,
-            context -> null,
+            context -> {
+                var parsed = HttpDateParser.parse(context.getRequest().getHeaders().get("if-modified-since"));
+                if (parsed.isPresent()) {
+                    context.put(RestContext.IF_MODIFIED_SINCE_DATE, new kotowari.restful.data.HttpDate(parsed.get()));
+                    return true;
+                }
+                return null;
+            },
             modifiedSince,
             methodDelete);
+        // RFC 9110 §13.1.3: If-Modified-Since is only applicable to GET and HEAD.
         Node<?> ifModifiedSinceExists = decision(IF_MODIFIED_SINCE_EXISTS,
-            context -> context.getRequest().getHeaders().containsKey("if-modified-since"),
+            context -> {
+                String method = context.getRequest().getRequestMethod();
+                return ("GET".equalsIgnoreCase(method) || "HEAD".equalsIgnoreCase(method))
+                        && context.getRequest().getHeaders().containsKey("if-modified-since");
+            },
             ifModifiedSinceValidDate,
             methodDelete);
 
@@ -209,7 +365,14 @@ public class ResourceEngine {
             ifNoneMatchExists);
 
         Node<?> ifUnmodifiedSinceValidDate = decision(IF_UNMODIFIED_SINCE_VALID_DATE,
-            context -> null,
+            context -> {
+                var parsed = HttpDateParser.parse(context.getRequest().getHeaders().get("if-unmodified-since"));
+                if (parsed.isPresent()) {
+                    context.put(RestContext.IF_UNMODIFIED_SINCE_DATE, new kotowari.restful.data.HttpDate(parsed.get()));
+                    return true;
+                }
+                return null;
+            },
             unmodifiedSince,
             ifNoneMatchExists);
 

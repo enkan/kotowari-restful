@@ -55,6 +55,7 @@ public final class Action implements Node<Node<?>> {
     public Node<?> execute(RestContext context) {
         LOG.debug("{}", point);
         Function<RestContext, ?> func = context.getResourceFunction(point);
+        context.recordTrace(point, "ACTION", null);
         if (func == null) {
             return nextNode;
         }

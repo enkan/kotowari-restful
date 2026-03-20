@@ -3,6 +3,8 @@ package kotowari.restful.data;
 import enkan.collection.Headers;
 import enkan.data.HttpRequest;
 import kotowari.restful.DecisionPoint;
+import kotowari.restful.trace.RequestTrace;
+import kotowari.restful.trace.TraceEntry;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -39,6 +41,33 @@ import java.util.function.Function;
  * @author kawasima
  */
 public class RestContext {
+    /**
+     * Key for the parsed {@code If-Modified-Since} date, stored by the
+     * {@code IF_MODIFIED_SINCE_VALID_DATE} decision node when the header
+     * contains a valid HTTP-date.
+     *
+     * <p>Resource classes that override {@code MODIFIED_SINCE} can retrieve
+     * this value to compare against the resource's last modification time:
+     * <pre>{@code
+     * @Decision(MODIFIED_SINCE)
+     * public boolean modifiedSince(RestContext ctx) {
+     *     Instant clientDate = ctx.get(RestContext.IF_MODIFIED_SINCE_DATE)
+     *             .map(HttpDate::value).orElseThrow();
+     *     return myLastModified.isAfter(clientDate);
+     * }
+     * }</pre>
+     */
+    public static final ContextKey<HttpDate> IF_MODIFIED_SINCE_DATE =
+            ContextKey.of("ifModifiedSinceDate", HttpDate.class);
+
+    /**
+     * Key for the parsed {@code If-Unmodified-Since} date, stored by the
+     * {@code IF_UNMODIFIED_SINCE_VALID_DATE} decision node when the header
+     * contains a valid HTTP-date.
+     */
+    public static final ContextKey<HttpDate> IF_UNMODIFIED_SINCE_DATE =
+            ContextKey.of("ifUnmodifiedSinceDate", HttpDate.class);
+
     private final Resource resource;
     private final HttpRequest request;
     private final Map<ContextKey<?>, Object> values;
@@ -47,6 +76,7 @@ public class RestContext {
     private int status;
     private Headers headers;
     private Throwable exception;
+    private RequestTrace trace;
 
     /**
      * Creates a new context for the given resource and request.
@@ -98,6 +128,56 @@ public class RestContext {
 
     public void setHeaders(Headers headers) {
         this.headers = headers;
+    }
+
+    /**
+     * Adds a single response header to the context.
+     *
+     * <p>If no headers object has been set yet, one is created automatically.
+     * This is the preferred way for decision functions to set individual response
+     * headers such as {@code WWW-Authenticate} or {@code Location}.
+     *
+     * @param name  the header name (case-insensitive per HTTP spec)
+     * @param value the header value
+     */
+    public void addHeader(String name, String value) {
+        if (headers == null) {
+            headers = Headers.empty();
+        }
+        headers.put(name, value);
+    }
+
+    /**
+     * Enables request tracing for this context.
+     *
+     * <p>Once enabled, every {@link Decision}, {@link kotowari.restful.decision.Action},
+     * and {@link kotowari.restful.decision.Handler} node visited during graph traversal
+     * is recorded via {@link #recordTrace(DecisionPoint, String, Boolean)}.
+     */
+    public void enableTracing() {
+        this.trace = new RequestTrace();
+    }
+
+    /**
+     * Records a single node visit. This is a no-op when tracing is not enabled.
+     *
+     * @param point  the decision point of the visited node
+     * @param kind   the node kind: {@code "DECISION"}, {@code "ACTION"}, or {@code "HANDLER"}
+     * @param result the boolean result, or {@code null} for action/handler nodes
+     */
+    public void recordTrace(DecisionPoint point, String kind, Boolean result) {
+        if (trace != null) {
+            trace.record(new TraceEntry(point, kind, result));
+        }
+    }
+
+    /**
+     * Returns the accumulated request trace, if tracing was enabled for this context.
+     *
+     * @return an {@link Optional} containing the trace, or empty if tracing was not enabled
+     */
+    public Optional<RequestTrace> getTrace() {
+        return Optional.ofNullable(trace);
     }
 
     public Throwable getException() {

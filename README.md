@@ -4,7 +4,7 @@
 [![License](https://img.shields.io/badge/License-EPL%202.0-blue.svg)](https://www.eclipse.org/legal/epl-2.0/)
 [![Java](https://img.shields.io/badge/Java-25%2B-orange.svg)](https://jdk.java.net/)
 
-A declarative RESTful API framework for Java, built on [enkan](https://github.com/enkan/enkan) / [kotowari](https://github.com/enkan/enkan).
+A declarative RESTful API framework for Java, built on [enkan](https://github.com/enkan/enkan) / [kotowari](https://github.com/enkan/enkan) (a lightweight middleware-based web framework).
 
 ## Why kotowari-restful?
 
@@ -17,7 +17,19 @@ A declarative RESTful API framework for Java, built on [enkan](https://github.co
 ## Requirements
 
 - Java 25+
-- enkan/kotowari 0.13.0+
+- enkan/kotowari 0.14.0+
+
+## Project Structure
+
+This is a multi-module Maven project:
+
+```text
+kotowari-restful/           ← root (parent POM)
+├── kotowari-restful/       ← core library
+└── kotowari-restful-devel/ ← development tools (request tracing, graph visualization)
+```
+
+The `example/` directory is an independent Maven project demonstrating usage.
 
 ## Installation
 
@@ -27,7 +39,17 @@ Add the following dependency to your `pom.xml`:
 <dependency>
     <groupId>net.unit8.enkan</groupId>
     <artifactId>kotowari-restful</artifactId>
-    <version>0.13.0</version>
+    <version>0.14.0</version>
+</dependency>
+```
+
+For development-time request tracing, also add:
+
+```xml
+<dependency>
+    <groupId>net.unit8.enkan</groupId>
+    <artifactId>kotowari-restful-devel</artifactId>
+    <version>0.14.0</version>
 </dependency>
 ```
 
@@ -39,7 +61,9 @@ Annotate methods with `@Decision` to customize specific points in the decision g
 
 ```java
 import kotowari.restful.Decision;
+import kotowari.restful.DecisionPoint;
 import kotowari.restful.resource.AllowedMethods;
+
 import static kotowari.restful.DecisionPoint.*;
 
 @AllowedMethods({"GET", "POST"})
@@ -104,10 +128,10 @@ The decision graph evaluates each request through a fixed sequence of decision p
 | `PUT` | `true` | Executes the PUT action |
 | `PATCH` | `true` | Executes the PATCH action |
 | `DELETE` | `true` | Executes the DELETE action |
-| `HANDLE_OK` | `"ok"` | Response body for 200 |
-| `HANDLE_CREATED` | `null` | Response body for 201 |
-| `HANDLE_NOT_FOUND` | `"Resource not found"` | Response body for 404 |
-| `HANDLE_EXCEPTION` | `null` | Response body for 500; `context.getException()` holds the thrown exception |
+| `HANDLE_OK` | `"OK"` | Response body for 200 |
+| `HANDLE_CREATED` | `null` | Response body for 201 (empty body) |
+| `HANDLE_NOT_FOUND` | `"Resource not found."` | Response body for 404 |
+| `HANDLE_EXCEPTION` | `"Internal server error."` | Response body for 500; `context.getException()` holds the thrown exception |
 
 ### Per-HTTP-method dispatch
 
@@ -223,10 +247,70 @@ public class ArticlesResource {
 }
 ```
 
+## Request Tracing (Development)
+
+`kotowari-restful-devel` provides a Liberator-style decision graph visualizer that shows which nodes each request passed through, color-coded on the SVG graph.
+
+### Enable tracing
+
+```java
+ResourceInvokerMiddleware<HttpResponse> resourceInvoker =
+        builder(new ResourceInvokerMiddleware<HttpResponse>(injector))
+                .set(ResourceInvokerMiddleware::setParameterInjectors, parameterInjectors)
+                .set(ResourceInvokerMiddleware::setTracingEnabled, true)
+                .build();
+```
+
+### Mount the dev endpoints
+
+Add `TraceSvgEndpoint` and `TraceViewerEndpoint` to your application **before** `ContentNegotiationMiddleware` (they serve HTML/SVG, not JSON):
+
+```java
+import kotowari.restful.devel.TraceSvgEndpoint;
+import kotowari.restful.devel.TraceViewerEndpoint;
+import static enkan.predicate.PathPredicate.GET;
+import static enkan.util.Predicates.envIn;
+
+app.use(GET("/_dev/trace\\.svg").and(envIn("development")), "traceSvg", new TraceSvgEndpoint());
+app.use(GET("/_dev/trace.*").and(envIn("development")), "traceViewer",
+        new TraceViewerEndpoint(resourceInvoker.getTraceStore()));
+```
+
+### Available endpoints
+
+| URL | Description |
+| --- | --- |
+| `/_dev/trace` | List of all recorded traces (newest first), with request time, method, and URI |
+| `/_dev/trace/<id>` | Decision graph SVG with visited nodes highlighted for a specific request |
+| `/_dev/trace.svg` | The raw decision graph SVG |
+
+### Color coding
+
+| Color | Meaning |
+| --- | --- |
+| Green | Decision node evaluated to `true` |
+| Red | Decision node evaluated to `false` |
+| Blue | Action or handler node |
+| Orange edge | Traversed edge between consecutive nodes |
+
+At most 100 traces are retained in memory; oldest entries are evicted automatically.
+
+### Regenerating the decision graph SVG
+
+The DOT source is at `kotowari-restful-devel/src/main/resources/kotowari/restful/trace/decision-graph.dot`.
+To regenerate the SVG:
+
+```bash
+dot -Tsvg kotowari-restful-devel/src/main/resources/kotowari/restful/trace/decision-graph.dot \
+    -o kotowari-restful-devel/src/main/resources/kotowari/restful/trace/decision-graph.svg
+```
+
 ## Full Example
 
 The following example shows a collection resource that supports paginated listing (`GET`) and creation (`POST`).
 Input is decoded and validated using Raoh decoders; results are persisted via jOOQ with explicit transactions.
+
+> **Note:** `DSLContext` injection requires a custom `ParameterInjector<DSLContext>` registered in your middleware stack. See the [example application](example/) for a complete working setup.
 
 ```java
 @AllowedMethods({"GET", "POST"})
@@ -235,7 +319,12 @@ public class ArticlesResource {
     static final ContextKey<ArticleSearchParams> SEARCH_PARAMS = ContextKey.of(ArticleSearchParams.class);
     static final ContextKey<Article> ARTICLE = ContextKey.of(Article.class);
 
-    // Raoh decoder: validates and maps JSON → Article
+    // Raoh decoders: validate and map input
+    private static final Decoder<Parameters, ArticleSearchParams> SEARCH_PARAMS_DECODER = combine(
+            field("offset", optional(integer()).map(opt -> opt.orElse(0))),
+            field("limit",  optional(integer().min(1).max(100)).map(opt -> opt.orElse(20)))
+    ).apply(ArticleSearchParams::new)::decode;
+
     private static final JsonDecoder<Article> ARTICLE_DECODER = combine(
             field("title", string().trim().nonBlank().maxLength(200).map(String::new)),
             field("publishedAt", isoLocalDate())

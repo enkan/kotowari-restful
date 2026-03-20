@@ -5,17 +5,17 @@
 
     <groupId>net.unit8.enkan</groupId>
     <artifactId>kotowari-restful-example</artifactId>
-    <version>0.13.0-SNAPSHOT</version>
+    <version>0-SNAPSHOT</version>
     <packaging>jar</packaging>
     <name>kotowari-restful-example</name>
     <description>Example application for kotowari-restful</description>
 
     <properties>
         <java.version>25</java.version>
-        <enkan.version>0.13.0</enkan.version>
+        <enkan.version>0.14.0</enkan.version>
         <jackson.version>3.1.0</jackson.version>
         <jackson.jaxrs.version>3.1.0</jackson.jaxrs.version>
-        <raoh.version>0.3.0</raoh.version>
+        <raoh.version>0.4.1</raoh.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
@@ -44,7 +44,12 @@
         <dependency>
             <groupId>net.unit8.enkan</groupId>
             <artifactId>kotowari-restful</artifactId>
-            <version>${enkan.version}</version>
+            <version>0.14.0</version>
+        </dependency>
+        <dependency>
+            <groupId>net.unit8.enkan</groupId>
+            <artifactId>kotowari-restful-devel</artifactId>
+            <version>0.14.0</version>
         </dependency>
         <dependency>
             <groupId>net.unit8.enkan</groupId>

@@ -15,6 +15,8 @@ import kotowari.inject.ParameterInjector;
 import kotowari.inject.parameter.*;
 import kotowari.middleware.RoutingMiddleware;
 import kotowari.middleware.SerDesMiddleware;
+import kotowari.restful.devel.TraceSvgEndpoint;
+import kotowari.restful.devel.TraceViewerEndpoint;
 import kotowari.restful.example.inject.DSLContextInjector;
 import kotowari.restful.example.resource.AddressResource;
 import kotowari.restful.example.resource.AddressesResource;
@@ -29,7 +31,9 @@ import kotowari.routing.Routes;
 import java.util.List;
 import java.util.Set;
 
+import static enkan.predicate.PathPredicate.GET;
 import static enkan.util.BeanBuilder.builder;
+import static enkan.util.Predicates.envIn;
 
 /**
  * Builds the middleware stack for the example REST application.
@@ -39,6 +43,8 @@ import static enkan.util.BeanBuilder.builder;
  *   <li>{@code ParamsMiddleware} — parses query string and URL-encoded form body into {@code Parameters}</li>
  *   <li>{@code MultipartParamsMiddleware} — parses multipart/form-data</li>
  *   <li>{@code NestedParamsMiddleware} — expands dot-notation keys into nested maps</li>
+ *   <li>{@code TraceSvgEndpoint} — serves the decision graph SVG at {@code /_dev/trace.svg}</li>
+ *   <li>{@code TraceViewerEndpoint} — serves per-request trace pages at {@code /_dev/trace/<id>}</li>
  *   <li>{@code ContentNegotiationMiddleware} — rejects requests whose Accept header is not {@code application/json}</li>
  *   <li>{@code RoutingMiddleware} — matches the request path and sets the target resource class on the request</li>
  *   <li>{@code JooqDslContextMiddleware} — provides a jOOQ DSLContext on every request</li>
@@ -49,16 +55,6 @@ import static enkan.util.BeanBuilder.builder;
 public class ExampleApplicationFactory implements ApplicationFactory<HttpRequest, HttpResponse> {
     @Override
     public Application<HttpRequest, HttpResponse> create(ComponentInjector injector) {
-        Routes routes = Routes.define(r -> {
-            r.all("/addresses").to(AddressesResource.class);
-            r.all("/addresses/:id").to(AddressResource.class);
-            r.post("/customers").to(CustomersResource.class);
-            r.get("/customers/:id").to(CustomerResource.class);
-            r.post("/customers/:id/contact-methods").to(ContactMethodsResource.class);
-            r.delete("/customers/:id/contact-methods/:cmId").to(ContactMethodResource.class);
-            r.put("/customers/:id/contact-methods/:cmId/primary").to(ContactMethodPrimaryResource.class);
-        }).compile();
-
         List<ParameterInjector<?>> parameterInjectors = List.of(
                 new HttpRequestInjector(),
                 new ParametersInjector(),
@@ -70,20 +66,38 @@ public class ExampleApplicationFactory implements ApplicationFactory<HttpRequest
                 new LocaleInjector(),
                 new DSLContextInjector()
         );
+
+        ResourceInvokerMiddleware<HttpResponse> resourceInvoker =
+                builder(new ResourceInvokerMiddleware<HttpResponse>(injector))
+                        .set(ResourceInvokerMiddleware::setParameterInjectors, parameterInjectors)
+                        .set(ResourceInvokerMiddleware::setOutputErrorReason, true)
+                        .set(ResourceInvokerMiddleware::setTracingEnabled, true)
+                        .build();
+
+        Routes routes = Routes.define(r -> {
+            r.all("/addresses").to(AddressesResource.class);
+            r.all("/addresses/:id").to(AddressResource.class);
+            r.post("/customers").to(CustomersResource.class);
+            r.get("/customers/:id").to(CustomerResource.class);
+            r.post("/customers/:id/contact-methods").to(ContactMethodsResource.class);
+            r.delete("/customers/:id/contact-methods/:cmId").to(ContactMethodResource.class);
+            r.put("/customers/:id/contact-methods/:cmId/primary").to(ContactMethodPrimaryResource.class);
+        }).compile();
+
         WebApplication app = new WebApplication();
         app.use(new ParamsMiddleware());
         app.use(new MultipartParamsMiddleware());
         app.use(new NestedParamsMiddleware());
+        app.use(GET("/_dev/trace\\.svg").and(envIn("development")), "traceSvg", new TraceSvgEndpoint());
+        app.use(GET("/_dev/trace.*").and(envIn("development")), "traceViewer",
+                new TraceViewerEndpoint(resourceInvoker.getTraceStore()));
         app.use(builder(new ContentNegotiationMiddleware())
                 .set(ContentNegotiationMiddleware::setAllowedTypes, Set.of("application/json"))
                 .build());
         app.use(new RoutingMiddleware(routes));
         app.use(new JooqDslContextMiddleware<>());
         app.use(new SerDesMiddleware<>());
-        app.use(builder(new ResourceInvokerMiddleware<>(injector))
-                .set(ResourceInvokerMiddleware::setParameterInjectors, parameterInjectors)
-                .set(ResourceInvokerMiddleware::setOutputErrorReason, true)
-                .build());
+        app.use(resourceInvoker);
         return app;
     }
 }
