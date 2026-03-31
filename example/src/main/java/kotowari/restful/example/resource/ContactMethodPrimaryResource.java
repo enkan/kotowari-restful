@@ -18,6 +18,7 @@ import net.unit8.raoh.Ok;
 import org.jooq.DSLContext;
 
 import java.util.List;
+import java.util.Map;
 
 import static kotowari.restful.DecisionPoint.*;
 
@@ -175,7 +176,7 @@ public class ContactMethodPrimaryResource {
      * @return the response body for the 200 response
      */
     @Decision(HANDLE_OK)
-    public CustomerResponse handleOk(CustomerId id, CustomerWithIds cwi) {
-        return CustomerResponse.from(id, cwi);
+    public Map<String, Object> handleOk(CustomerId id, CustomerWithIds cwi) {
+        return CustomerJsonEncoders.encodeCustomerResponse(id, cwi);
     }
 }

@@ -10,6 +10,8 @@ import kotowari.restful.example.data.CustomerWithIds;
 import kotowari.restful.resource.AllowedMethods;
 import org.jooq.DSLContext;
 
+import java.util.Map;
+
 import static kotowari.restful.DecisionPoint.*;
 
 /**
@@ -17,7 +19,7 @@ import static kotowari.restful.DecisionPoint.*;
  *
  * <p>Handles retrieval of an individual customer via {@code GET /customers/:id}.
  * The customer is looked up by the {@code id} path parameter and, if found,
- * returned as a {@link CustomerResponse}.
+ * encoded directly to JSON via {@link CustomerJsonEncoders#encodeCustomerResponse}.
  *
  * <h2>Decision graph flow</h2>
  * <ol>
@@ -30,7 +32,7 @@ import static kotowari.restful.DecisionPoint.*;
  * </ol>
  *
  * @see CustomerRepository
- * @see CustomerResponse
+ * @see CustomerJsonEncoders
  */
 @AllowedMethods({"GET"})
 public class CustomerResource {
@@ -65,16 +67,16 @@ public class CustomerResource {
     /**
      * Builds the 200 OK response body for an existing customer.
      *
-     * <p>Converts the {@link CustomerWithIds} and {@link CustomerId} (stored in the
-     * context by {@link #exists}) into a {@link CustomerResponse} DTO suitable
-     * for JSON serialization.
+     * <p>Encodes the {@link CustomerWithIds} and {@link CustomerId} (stored in the
+     * context by {@link #exists}) into a {@code Map} via
+     * {@link CustomerJsonEncoders#encodeCustomerResponse} for JSON serialization.
      *
      * @param id  the customer ID from the path parameter
      * @param cwi the customer with IDs from the context
      * @return the response body for the 200 response
      */
     @Decision(HANDLE_OK)
-    public CustomerResponse show(CustomerId id, CustomerWithIds cwi) {
-        return CustomerResponse.from(id, cwi);
+    public Map<String, Object> show(CustomerId id, CustomerWithIds cwi) {
+        return CustomerJsonEncoders.encodeCustomerResponse(id, cwi);
     }
 }

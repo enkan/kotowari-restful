@@ -15,7 +15,7 @@
         <enkan.version>0.14.0</enkan.version>
         <jackson.version>3.1.0</jackson.version>
         <jackson.jaxrs.version>3.1.0</jackson.jaxrs.version>
-        <raoh.version>0.4.1</raoh.version>
+        <raoh.version>0.5.0</raoh.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 

@@ -123,8 +123,8 @@ public class CustomersResource {
 
     // 3. Build the response
     @Decision(HANDLE_CREATED)
-    public CustomerResponse handleCreated(CustomerId id) {
-        return new CustomerResponse(id);
+    public Map<String, Object> handleCreated(CustomerId id, CustomerWithIds cwi) {
+        return CustomerJsonEncoders.encodeCustomerResponse(id, cwi);
     }
 }
 ```
@@ -169,7 +169,7 @@ public class CustomersResource {
 
     // 201 response body
     @Decision(HANDLE_CREATED)
-    public CustomerResponse handleCreated(CustomerId id, CustomerWithIds cwi) { ... }
+    public Map<String, Object> handleCreated(CustomerId id, CustomerWithIds cwi) { ... }
 }
 ```
 
@@ -332,5 +332,5 @@ example/src/main/java/kotowari/restful/example/
     ├── ContactMethodResource.java
     ├── ContactMethodPrimaryResource.java
     ├── CustomerJsonDecoders.java
-    └── CustomerResponse.java
+    └── CustomerJsonEncoders.java
 ```

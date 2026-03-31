@@ -18,6 +18,7 @@ import org.jooq.DSLContext;
 import tools.jackson.databind.JsonNode;
 
 import java.util.List;
+import java.util.Map;
 
 import static kotowari.restful.DecisionPoint.*;
 
@@ -140,7 +141,7 @@ public class ContactMethodsResource {
      * @return the response body for the 201 response
      */
     @Decision(HANDLE_CREATED)
-    public CustomerResponse handleCreated(CustomerId id, CustomerWithIds cwi) {
-        return CustomerResponse.from(id, cwi);
+    public Map<String, Object> handleCreated(CustomerId id, CustomerWithIds cwi) {
+        return CustomerJsonEncoders.encodeCustomerResponse(id, cwi);
     }
 }

@@ -14,6 +14,7 @@ import org.jooq.DSLContext;
 import tools.jackson.databind.JsonNode;
 
 import java.util.List;
+import java.util.Map;
 
 import static kotowari.restful.DecisionPoint.*;
 
@@ -104,15 +105,15 @@ public class CustomersResource {
     /**
      * Builds the 201 Created response body.
      *
-     * <p>Converts the persisted {@link CustomerWithIds} and its generated {@link CustomerId}
-     * into a {@link CustomerResponse} DTO suitable for JSON serialization.
+     * <p>Encodes the persisted {@link CustomerWithIds} and its generated {@link CustomerId}
+     * via {@link CustomerJsonEncoders#encodeCustomerResponse} for JSON serialization.
      *
      * @param id  the generated customer ID
      * @param cwi the persisted customer with IDs
      * @return the response body for the 201 response
      */
     @Decision(HANDLE_CREATED)
-    public CustomerResponse handleCreated(CustomerId id, CustomerWithIds cwi) {
-        return CustomerResponse.from(id, cwi);
+    public Map<String, Object> handleCreated(CustomerId id, CustomerWithIds cwi) {
+        return CustomerJsonEncoders.encodeCustomerResponse(id, cwi);
     }
 }

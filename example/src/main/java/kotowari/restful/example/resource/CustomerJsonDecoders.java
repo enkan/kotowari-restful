@@ -1,7 +1,7 @@
 package kotowari.restful.example.resource;
 
 import kotowari.restful.example.data.*;
-import net.unit8.raoh.Decoder;
+import net.unit8.raoh.decode.Decoder;
 import net.unit8.raoh.json.JsonDecoder;
 import tools.jackson.databind.JsonNode;
 
