@@ -1,7 +1,7 @@
 package kotowari.restful.middleware;
 
-import enkan.data.DefaultHttpRequest;
-import enkan.data.HttpRequest;
+import enkan.web.data.DefaultHttpRequest;
+import enkan.web.data.HttpRequest;
 import enkan.exception.MisconfigurationException;
 import enkan.system.inject.ComponentInjector;
 import org.junit.jupiter.api.Test;

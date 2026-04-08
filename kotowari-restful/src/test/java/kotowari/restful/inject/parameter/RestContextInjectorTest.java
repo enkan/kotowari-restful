@@ -1,6 +1,6 @@
 package kotowari.restful.inject.parameter;
 
-import enkan.data.DefaultHttpRequest;
+import enkan.web.data.DefaultHttpRequest;
 import kotowari.restful.data.ContextKey;
 import kotowari.restful.data.DefaultResource;
 import kotowari.restful.data.RestContext;

@@ -1,6 +1,6 @@
 package kotowari.restful;
 
-import enkan.data.HttpRequest;
+import enkan.web.data.HttpRequest;
 import enkan.exception.UnrecoverableException;
 import kotowari.restful.data.ApiResponse;
 import kotowari.restful.data.DefaultResource;

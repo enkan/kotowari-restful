@@ -1,11 +1,11 @@
 package kotowari.restful.devel;
 
 import enkan.Endpoint;
-import enkan.data.HttpRequest;
-import enkan.data.HttpResponse;
+import enkan.web.data.HttpRequest;
+import enkan.web.data.HttpResponse;
 
-import static enkan.util.HttpResponseUtils.contentType;
-import static enkan.util.HttpResponseUtils.response;
+import static enkan.web.util.HttpResponseUtils.contentType;
+import static enkan.web.util.HttpResponseUtils.response;
 
 /**
  * An enkan {@link Endpoint} that serves the decision graph SVG file.

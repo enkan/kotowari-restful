@@ -12,7 +12,7 @@
 
     <properties>
         <java.version>25</java.version>
-        <enkan.version>0.14.0</enkan.version>
+        <enkan.version>0.15.0</enkan.version>
         <jackson.version>3.1.0</jackson.version>
         <jackson.jaxrs.version>3.1.0</jackson.jaxrs.version>
         <raoh.version>0.5.0</raoh.version>
@@ -44,12 +44,12 @@
         <dependency>
             <groupId>net.unit8.enkan</groupId>
             <artifactId>kotowari-restful</artifactId>
-            <version>0.14.0</version>
+            <version>0.15.0</version>
         </dependency>
         <dependency>
             <groupId>net.unit8.enkan</groupId>
             <artifactId>kotowari-restful-devel</artifactId>
-            <version>0.14.0</version>
+            <version>0.15.0</version>
         </dependency>
         <dependency>
             <groupId>net.unit8.enkan</groupId>

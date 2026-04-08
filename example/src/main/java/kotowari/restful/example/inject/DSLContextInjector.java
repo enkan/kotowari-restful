@@ -1,7 +1,7 @@
 package kotowari.restful.example.inject;
 
 import enkan.data.Extendable;
-import enkan.data.HttpRequest;
+import enkan.web.data.HttpRequest;
 import kotowari.inject.ParameterInjector;
 import org.jooq.DSLContext;
 

@@ -1,9 +1,9 @@
 package kotowari.restful.data;
 
-import enkan.collection.Headers;
-import enkan.data.HasBody;
-import enkan.data.HasHeaders;
-import enkan.data.HasStatus;
+import enkan.web.collection.Headers;
+import enkan.web.data.HasBody;
+import enkan.web.data.HasHeaders;
+import enkan.web.data.HasStatus;
 
 /**
  * The response object representing for the result of API.

@@ -1,10 +1,10 @@
 package kotowari.restful.example;
 
 import enkan.Application;
-import enkan.application.WebApplication;
+import enkan.web.application.WebApplication;
 import enkan.config.ApplicationFactory;
-import enkan.data.HttpRequest;
-import enkan.data.HttpResponse;
+import enkan.web.data.HttpRequest;
+import enkan.web.data.HttpResponse;
 import enkan.middleware.ContentNegotiationMiddleware;
 import enkan.middleware.MultipartParamsMiddleware;
 import enkan.middleware.NestedParamsMiddleware;

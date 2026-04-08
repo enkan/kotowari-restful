@@ -2,8 +2,8 @@ package kotowari.restful.data;
 
 import enkan.component.BeansConverter;
 import enkan.component.jackson.JacksonBeansConverter;
-import enkan.data.DefaultHttpRequest;
-import enkan.data.HttpRequest;
+import enkan.web.data.DefaultHttpRequest;
+import enkan.web.data.HttpRequest;
 import enkan.system.inject.ComponentInjector;
 import kotowari.inject.ParameterInjector;
 import kotowari.inject.parameter.*;
