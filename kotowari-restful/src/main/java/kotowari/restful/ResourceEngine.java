@@ -227,123 +227,76 @@ public class ResourceEngine {
     }
 
     /**
-     * Wraps a resource so that:
+     * Wraps a resource so that decision functions for the points documented
+     * below are decorated with engine-level behavior before being returned
+     * to the graph. Each wrapper is implemented as a private helper method
+     * (see {@code initializeContextWrapper}, {@code authorizedWrapper}, etc.)
+     * so that this switch stays easy to scan.
+     *
      * <ul>
-     *   <li>{@code AUTHORIZED} — when the resource function returns a {@link String},
-     *       it is used as the {@code WWW-Authenticate} header value and the result is
-     *       changed to {@code false} (routes to 401), satisfying RFC 7235 §4.1.</li>
-     *   <li>{@code MOVED_PERMANENTLY}, {@code MOVED_TEMPORARILY}, {@code POST_REDIRECT}
-     *       — when the resource function returns a {@link String} or {@link URI},
-     *       it is set as the {@code Location} header and the result is changed to
-     *       {@code true} (routes to the redirect handler), satisfying RFC 7231 §6.4.</li>
-     *   <li>{@code ETAG_MATCHES_FOR_IF_MATCH}, {@code ETAG_MATCHES_FOR_IF_NONE} —
-     *       when the resource function returns a {@link String} (an entity-tag),
-     *       it is compared against the request's {@code If-Match} /
-     *       {@code If-None-Match} header via
+     *   <li>{@code INITIALIZE_CONTEXT} — parses the {@code Prefer} header
+     *       (RFC 7240) into {@link PreferDirectives} and stashes it on the
+     *       context before delegating to the resource function.</li>
+     *   <li>{@code AUTHORIZED} — when the resource function returns a
+     *       {@link String}, it is used as the {@code WWW-Authenticate} header
+     *       value and the result is changed to {@code false} (routes to 401),
+     *       satisfying RFC 7235 §4.1.</li>
+     *   <li>{@code MOVED_PERMANENTLY}, {@code MOVED_TEMPORARILY},
+     *       {@code POST_REDIRECT} — when the resource function returns a
+     *       {@link String} or {@link URI}, it is set as the {@code Location}
+     *       header and the result is changed to {@code true} (routes to the
+     *       redirect handler), satisfying RFC 7231 §6.4.</li>
+     *   <li>{@code ETAG_MATCHES_FOR_IF_MATCH},
+     *       {@code ETAG_MATCHES_FOR_IF_NONE} — when the resource function
+     *       returns a {@link String} (an entity-tag), it is compared against
+     *       the request's {@code If-Match} / {@code If-None-Match} header via
      *       {@link enkan.web.util.ETagUtils#matchesHeader(String, String, boolean)}
-     *       (strong comparison for If-Match per RFC 9110 §13.1.1, weak comparison
-     *       for If-None-Match per §13.1.2). The resource ETag is also stashed on
-     *       the response as the {@code ETag} header so downstream
-     *       {@code ConditionalMiddleware} can reuse it. Boolean returns bypass
-     *       this transform and preserve backward compatibility.</li>
+     *       (strong comparison for If-Match per RFC 9110 §13.1.1, weak
+     *       comparison for If-None-Match per §13.1.2). The resource ETag is
+     *       also stashed on the response as the {@code ETag} header so
+     *       downstream {@code ConditionalMiddleware} can reuse it. Boolean
+     *       returns bypass this transform and preserve backward
+     *       compatibility.</li>
+     *   <li>{@code KNOWN_CONTENT_TYPE} — for {@code PATCH} requests, enforces
+     *       the resource's declared {@code Accept-Patch} registry
+     *       (RFC 5789 §3.1) and stashes a typed {@link PatchDocument} on the
+     *       context.</li>
+     *   <li>{@code PATCH} — when the client sent
+     *       {@code Prefer: handling=lenient} (RFC 7240 §4.4), catches
+     *       {@link RuntimeException} and surfaces it as a 400 Problem. The
+     *       exception message is only inlined into the response when
+     *       {@link #setPrintStackTrace(boolean)} is enabled, to avoid
+     *       leaking internal details in production.</li>
      * </ul>
      *
-     * <p>{@link Resource#getAllowedMethods()} is delegated to the original resource
-     * so that {@code ClassResource} overrides are preserved.
+     * <p>{@link Resource#getAllowedMethods()} and
+     * {@link Resource#getAcceptPatchMediaTypes()} are delegated to the
+     * original resource so that {@code ClassResource} overrides are
+     * preserved.
      *
      * @param resource the original resource
      * @return a wrapped resource with header-aware function overrides
      */
-    private static Resource wrapResource(Resource resource) {
+    private Resource wrapResource(Resource resource) {
         Set<MediaType> acceptPatchMediaTypes = resource.getAcceptPatchMediaTypes();
+        boolean exposeExceptionMessages = this.printStackTrace;
         return new Resource() {
             @Override
             public Function<RestContext, ?> getFunction(DecisionPoint point) {
                 Function<RestContext, ?> original = resource.getFunction(point);
                 return switch (point) {
-                    case INITIALIZE_CONTEXT -> ctx -> {
-                        // Always parse Prefer (RFC 7240) so resources and the
-                        // post-graph transform can observe it.
-                        String preferHeader = ctx.getRequest().getHeaders().get("prefer");
-                        PreferDirectives directives = PreferDirectives.parse(preferHeader);
-                        if (directives != PreferDirectives.NONE) {
-                            ctx.put(RestContext.PREFER_DIRECTIVES, directives);
-                        }
-                        if (original != null) {
-                            return original.apply(ctx);
-                        }
-                        return true;
-                    };
-                    case AUTHORIZED -> original == null ? null : ctx -> {
-                        Object result = original.apply(ctx);
-                        if (result instanceof String challenge) {
-                            ctx.addHeader("WWW-Authenticate", challenge);
-                            return false;
-                        }
-                        return result;
-                    };
+                    case INITIALIZE_CONTEXT -> initializeContextWrapper(original);
+                    case AUTHORIZED -> authorizedWrapper(original);
                     case MOVED_PERMANENTLY, MOVED_TEMPORARILY, POST_REDIRECT ->
-                        original == null ? null : redirectHandler(original);
+                            original == null ? null : redirectHandler(original);
                     case ETAG_MATCHES_FOR_IF_MATCH ->
-                        original == null ? null : etagComparator(original, "if-match", false);
+                            original == null ? null : etagComparator(original, "if-match", false);
                     case ETAG_MATCHES_FOR_IF_NONE ->
-                        original == null ? null : etagComparator(original, "if-none-match", true);
-                    case PATCH -> ctx -> {
-                        // RFC 7240 §4.4 handling=lenient: catch RuntimeException
-                        // from the PATCH handler and surface it as a 400 Problem
-                        // rather than a 500. Applies only when the client opts in.
-                        PreferDirectives prefer = ctx.get(RestContext.PREFER_DIRECTIVES).orElse(null);
-                        Function<RestContext, ?> patch = original != null ? original : c -> true;
-                        if (prefer != null && prefer.handlingLenient()) {
-                            try {
-                                return patch.apply(ctx);
-                            } catch (RuntimeException e) {
-                                LOG.debug("Lenient PATCH handling caught exception", e);
-                                return Problem.builder()
-                                        .status(400)
-                                        .type(kotowari.restful.data.ProblemTypes.BAD_REQUEST)
-                                        .detail(e.getMessage())
-                                        .build();
-                            }
-                        }
-                        return patch.apply(ctx);
-                    };
-                    case KNOWN_CONTENT_TYPE -> ctx -> {
-                        // For PATCH requests with a declared Accept-Patch media
-                        // type registry, reject unsupported Content-Type up
-                        // front (RFC 5789 §3.1 mandates 415 on unsupported
-                        // patch formats).
-                        String method = ctx.getRequest().getRequestMethod();
-                        if ("PATCH".equalsIgnoreCase(method) && !acceptPatchMediaTypes.isEmpty()) {
-                            String contentType = ctx.getRequest().getContentType();
-                            if (contentType == null || contentType.isBlank()) {
-                                return false;
-                            }
-                            MediaType requestType = parseMediaType(contentType);
-                            if (requestType == null) {
-                                return false;
-                            }
-                            boolean accepted = acceptPatchMediaTypes.stream()
-                                    .anyMatch(mt -> isCompatibleType(mt, requestType));
-                            if (!accepted) {
-                                return false;
-                            }
-                            // Stash a tagged PatchDocument once the body has
-                            // been deserialized upstream so the PATCH action
-                            // can dispatch without re-parsing Content-Type.
-                            if (ctx.getRequest() instanceof BodyDeserializable bd) {
-                                Object body = bd.getDeserializedBody();
-                                if (body != null) {
-                                    ctx.put(RestContext.PATCH_DOCUMENT,
-                                            new PatchDocument(requestType, body));
-                                }
-                            }
-                        }
-                        if (original != null) {
-                            return original.apply(ctx);
-                        }
-                        return true;
-                    };
+                            original == null ? null : etagComparator(original, "if-none-match", true);
+                    case KNOWN_CONTENT_TYPE ->
+                            knownContentTypeWrapper(original, acceptPatchMediaTypes);
+                    case PATCH -> patchWrapper(original, exposeExceptionMessages);
+                    case TOO_MANY_REQUESTS -> tooManyRequestsWrapper(original);
                     default -> original;
                 };
             }
@@ -356,6 +309,148 @@ public class ResourceEngine {
             @Override
             public Set<MediaType> getAcceptPatchMediaTypes() {
                 return acceptPatchMediaTypes;
+            }
+        };
+    }
+
+    /**
+     * Returns a wrapper for {@code INITIALIZE_CONTEXT} that always parses the
+     * {@code Prefer} header into {@link PreferDirectives} and stashes the
+     * result on the {@link RestContext}, then delegates to the original
+     * resource function (or yields {@code true} when none is registered).
+     */
+    private static Function<RestContext, ?> initializeContextWrapper(Function<RestContext, ?> original) {
+        return ctx -> {
+            String preferHeader = ctx.getRequest().getHeaders().get("prefer");
+            PreferDirectives directives = PreferDirectives.parse(preferHeader);
+            if (directives != PreferDirectives.NONE) {
+                ctx.put(RestContext.PREFER_DIRECTIVES, directives);
+            }
+            return original != null ? original.apply(ctx) : true;
+        };
+    }
+
+    /**
+     * Returns a wrapper for {@code TOO_MANY_REQUESTS} that unconditionally
+     * returns {@code false} (i.e. "not rate-limited") for {@code OPTIONS}
+     * requests, skipping the resource's rate-limit function entirely so that
+     * CORS preflight and capability-discovery traffic is never throttled by
+     * the default graph. For non-OPTIONS methods, the resource function runs
+     * as written (or yields {@code false} when none is registered — the
+     * same as the {@link DefaultResource} fallback).
+     */
+    private static Function<RestContext, ?> tooManyRequestsWrapper(Function<RestContext, ?> original) {
+        return ctx -> {
+            if ("OPTIONS".equalsIgnoreCase(ctx.getRequest().getRequestMethod())) {
+                return false;
+            }
+            return original != null ? original.apply(ctx) : false;
+        };
+    }
+
+    /**
+     * Returns a wrapper for {@code AUTHORIZED} that converts a {@link String}
+     * return value from the resource into a {@code WWW-Authenticate} header
+     * and a {@code false} decision (RFC 7235 §4.1).
+     */
+    private static Function<RestContext, ?> authorizedWrapper(Function<RestContext, ?> original) {
+        if (original == null) return null;
+        return ctx -> {
+            Object result = original.apply(ctx);
+            if (result instanceof String challenge) {
+                ctx.addHeader("WWW-Authenticate", challenge);
+                return false;
+            }
+            return result;
+        };
+    }
+
+    /**
+     * Returns a wrapper for {@code KNOWN_CONTENT_TYPE} that enforces the
+     * resource's {@code Accept-Patch} registry on {@code PATCH} requests
+     * (RFC 5789 §3.1). Non-PATCH requests delegate directly to the original
+     * function unchanged.
+     */
+    private static Function<RestContext, ?> knownContentTypeWrapper(
+            Function<RestContext, ?> original,
+            Set<MediaType> acceptPatchMediaTypes) {
+        return ctx -> {
+            String method = ctx.getRequest().getRequestMethod();
+            boolean isPatch = "PATCH".equalsIgnoreCase(method);
+            if (!isPatch || acceptPatchMediaTypes.isEmpty()) {
+                return original != null ? original.apply(ctx) : true;
+            }
+            String contentType = ctx.getRequest().getContentType();
+            if (contentType == null || contentType.isBlank()) {
+                return false;
+            }
+            MediaType requestType = parseMediaType(contentType);
+            if (requestType == null) {
+                return false;
+            }
+            boolean accepted = acceptPatchMediaTypes.stream()
+                    .anyMatch(mt -> isCompatibleType(mt, requestType));
+            if (!accepted) {
+                return false;
+            }
+            // Stash a tagged PatchDocument once the body has been
+            // deserialized upstream so the PATCH action can dispatch without
+            // re-parsing Content-Type.
+            if (ctx.getRequest() instanceof BodyDeserializable bd) {
+                Object body = bd.getDeserializedBody();
+                if (body != null) {
+                    ctx.put(RestContext.PATCH_DOCUMENT,
+                            new PatchDocument(requestType, body));
+                }
+            }
+            return original != null ? original.apply(ctx) : true;
+        };
+    }
+
+    /**
+     * Returns a wrapper for the {@code PATCH} action that honors
+     * {@code Prefer: handling=lenient} (RFC 7240 §4.4).
+     *
+     * <p>When the client opts in with {@code handling=lenient}, a
+     * {@link RuntimeException} thrown by the PATCH handler is caught and
+     * converted into a 400 Problem. {@link MalformedBodyException} is
+     * explicitly re-thrown so that the engine's existing 400 short-circuit
+     * path in {@link #runDecisionGraph(RestContext)} handles it uniformly.
+     *
+     * <p>The exception message is only inlined into the {@code detail} field
+     * when {@code exposeExceptionMessages} is true (i.e. the engine is
+     * configured for development-mode error reporting via
+     * {@link #setPrintStackTrace(boolean)}). In production mode the detail is
+     * a fixed, non-revealing string to avoid leaking internal implementation
+     * details — consistent with the existing {@code HANDLE_EXCEPTION} policy
+     * and the Kotowari-Restful convention that {@link Problem} must not
+     * expose exception internals.
+     */
+    private Function<RestContext, ?> patchWrapper(Function<RestContext, ?> original,
+                                                  boolean exposeExceptionMessages) {
+        Function<RestContext, ?> patch = original != null ? original : c -> true;
+        return ctx -> {
+            PreferDirectives prefer = ctx.get(RestContext.PREFER_DIRECTIVES).orElse(null);
+            if (prefer == null || !prefer.handlingLenient()) {
+                return patch.apply(ctx);
+            }
+            try {
+                return patch.apply(ctx);
+            } catch (MalformedBodyException e) {
+                // Surface to the engine's MalformedBodyException catch so the
+                // 400 short-circuit path produces the canonical response.
+                throw e;
+            } catch (RuntimeException e) {
+                LOG.debug("Lenient PATCH handling caught exception", e);
+                ctx.setException(e);
+                String detail = exposeExceptionMessages
+                        ? e.getMessage()
+                        : "Request could not be processed leniently.";
+                return Problem.builder()
+                        .status(400)
+                        .type(kotowari.restful.data.ProblemTypes.BAD_REQUEST)
+                        .detail(detail)
+                        .build();
             }
         };
     }
@@ -685,7 +780,11 @@ public class ResourceEngine {
 
         Node<?> handleTooManyRequests = handler(HANDLE_TOO_MANY_REQUESTS, 429, "Too many requests.");
         // RFC 6585 §4: rate-limiting check. Resource functions that return
-        // false allow the request; returning true triggers 429.
+        // true trigger 429; false allows the request through. OPTIONS is
+        // bypassed transparently by {@link #tooManyRequestsWrapper} before
+        // the resource function is ever called, so CORS preflight and
+        // capability-discovery traffic is never rate-limited by the default
+        // graph.
         Node<?> tooManyRequests = decision(TOO_MANY_REQUESTS,
             handleTooManyRequests,
             knownMethod);

@@ -1,11 +1,13 @@
 package kotowari.restful;
 
+import enkan.util.MixinUtils;
 import enkan.web.collection.Headers;
 import enkan.web.data.DefaultHttpRequest;
 import enkan.web.data.HttpRequest;
 import enkan.web.data.SseEmitter;
 import enkan.web.data.StreamingBody;
 import jakarta.ws.rs.core.MediaType;
+import kotowari.data.BodyDeserializable;
 import kotowari.restful.data.ApiResponse;
 import kotowari.restful.data.DefaultResource;
 import kotowari.restful.data.PatchDocument;
@@ -17,6 +19,7 @@ import kotowari.restful.data.RestContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.function.Function;
@@ -383,5 +386,256 @@ class ResourceEngine015FeaturesTest {
     void preferDirectivesCaseInsensitive() {
         PreferDirectives d = PreferDirectives.parse("Return=Minimal");
         assertThat(d.returnMinimal()).isTrue();
+    }
+
+    @Test
+    void preferDirectivesHonorsQuotedStringValue() {
+        // RFC 7240 §2 allows quoted-string form; unwrap and compare
+        // case-insensitively for token values.
+        PreferDirectives d = PreferDirectives.parse("handling=\"Lenient\"");
+        assertThat(d.handlingLenient()).isTrue();
+        // Quoted wait value must still parse.
+        PreferDirectives w = PreferDirectives.parse("wait=\"42\"");
+        assertThat(w.waitSeconds()).isEqualTo(42L);
+    }
+
+    @Test
+    void preferDirectivesHandlingStrictNotEchoedInPreferenceApplied() {
+        // handling=strict is parsed but not honored by the engine, so it must
+        // NOT appear in Preference-Applied per RFC 7240 §4.5 (don't claim
+        // behavior that isn't conditional on the directive).
+        PreferDirectives d = PreferDirectives.parse("handling=strict");
+        assertThat(d.handlingStrict()).isTrue();
+        assertThat(d.toPreferenceApplied()).isEmpty();
+    }
+
+    // --- #3 / #4 / #6: additional test-gap coverage ---------------------
+
+    @Test
+    void acceptPatchHeaderOrderIsDeterministic() {
+        // Accept-Patch should be emitted in alphabetical order regardless of
+        // the Set's iteration order so that caches and tests can rely on it.
+        Resource resource = new DefaultResource() {
+            @Override
+            public Set<String> getAllowedMethods() {
+                return Set.of("GET", "HEAD", "OPTIONS", "PATCH");
+            }
+            @Override
+            public Set<MediaType> getAcceptPatchMediaTypes() {
+                return Set.of(PatchDocument.MERGE_PATCH_JSON, PatchDocument.JSON_PATCH_JSON);
+            }
+            @Override
+            public Function<RestContext, ?> getFunction(DecisionPoint point) {
+                if (point == METHOD_ALLOWED) {
+                    return ctx -> getAllowedMethods().contains(
+                            ctx.getRequest().getRequestMethod().toUpperCase(Locale.US));
+                }
+                return super.getFunction(point);
+            }
+        };
+        ApiResponse res = engine.run(resource, request("OPTIONS", Headers.empty()));
+        assertThat((String) res.getHeaders().get("Accept-Patch"))
+                .isEqualTo("application/json-patch+json, application/merge-patch+json");
+    }
+
+    @Test
+    void patchWithAcceptedContentTypeStashesPatchDocument() {
+        // When KNOWN_CONTENT_TYPE accepts the PATCH request, it should
+        // stash a tagged PatchDocument on the RestContext pulled from the
+        // BodyDeserializable mixin.
+        Object[] captured = new Object[1];
+        Resource resource = new DefaultResource() {
+            @Override
+            public Set<String> getAllowedMethods() {
+                return Set.of("GET", "HEAD", "PATCH");
+            }
+            @Override
+            public Set<MediaType> getAcceptPatchMediaTypes() {
+                return Set.of(PatchDocument.MERGE_PATCH_JSON);
+            }
+            @Override
+            public Function<RestContext, ?> getFunction(DecisionPoint point) {
+                if (point == METHOD_ALLOWED) {
+                    return ctx -> getAllowedMethods().contains(
+                            ctx.getRequest().getRequestMethod().toUpperCase(Locale.US));
+                }
+                if (point == PATCH) {
+                    return ctx -> {
+                        captured[0] = ctx.get(RestContext.PATCH_DOCUMENT).orElse(null);
+                        return true;
+                    };
+                }
+                return super.getFunction(point);
+            }
+        };
+        DefaultHttpRequest raw = new DefaultHttpRequest();
+        raw.setRequestMethod("PATCH");
+        raw.setContentType("application/merge-patch+json");
+        raw.setHeaders(Headers.empty());
+        HttpRequest req = MixinUtils.mixin(raw, BodyDeserializable.class);
+        Object patchBody = java.util.Map.of("name", "Alice");
+        ((BodyDeserializable) req).setDeserializedBody(patchBody);
+        engine.run(resource, req);
+        PatchDocument pd = (PatchDocument) captured[0];
+        assertThat(pd).isNotNull();
+        assertThat(pd.isMergePatch()).isTrue();
+        assertThat(pd.body()).isSameAs(patchBody);
+    }
+
+    // --- #3: lenient PATCH behavioral tests -----------------------------
+
+    @Test
+    void lenientPatchConvertsRuntimeExceptionTo400() {
+        // A PATCH handler that throws is normally caught by the engine's
+        // exception handler and returned as 500. With Prefer: handling=lenient
+        // the engine must surface the failure as a 400 Problem instead.
+        Resource resource = new DefaultResource() {
+            @Override
+            public Set<String> getAllowedMethods() {
+                return Set.of("GET", "HEAD", "PATCH");
+            }
+            @Override
+            public Function<RestContext, ?> getFunction(DecisionPoint point) {
+                if (point == METHOD_ALLOWED) {
+                    return ctx -> getAllowedMethods().contains(
+                            ctx.getRequest().getRequestMethod().toUpperCase(Locale.US));
+                }
+                if (point == PATCH) {
+                    return ctx -> { throw new RuntimeException("totally broken"); };
+                }
+                return super.getFunction(point);
+            }
+        };
+        Headers h = Headers.empty();
+        h.put("prefer", "handling=lenient");
+        ApiResponse res = engine.run(resource, request("PATCH", h));
+        assertThat(res.getStatus()).isEqualTo(400);
+        // Default engine is production-mode (printStackTrace=false) so the
+        // exception message must NOT leak into the response body.
+        Problem problem = (Problem) res.getBody();
+        assertThat(problem).isNotNull();
+        assertThat(problem.getDetail()).doesNotContain("totally broken");
+    }
+
+    @Test
+    void lenientPatchExposesExceptionMessageWhenPrintStackTraceEnabled() {
+        engine.setPrintStackTrace(true);
+        Resource resource = new DefaultResource() {
+            @Override
+            public Set<String> getAllowedMethods() {
+                return Set.of("GET", "HEAD", "PATCH");
+            }
+            @Override
+            public Function<RestContext, ?> getFunction(DecisionPoint point) {
+                if (point == METHOD_ALLOWED) {
+                    return ctx -> getAllowedMethods().contains(
+                            ctx.getRequest().getRequestMethod().toUpperCase(Locale.US));
+                }
+                if (point == PATCH) {
+                    return ctx -> { throw new RuntimeException("explicit detail"); };
+                }
+                return super.getFunction(point);
+            }
+        };
+        Headers h = Headers.empty();
+        h.put("prefer", "handling=lenient");
+        ApiResponse res = engine.run(resource, request("PATCH", h));
+        assertThat(res.getStatus()).isEqualTo(400);
+        Problem problem = (Problem) res.getBody();
+        assertThat(problem.getDetail()).contains("explicit detail");
+    }
+
+    @Test
+    void strictPatchRuntimeExceptionStillReaches500() {
+        // Without Prefer: handling=lenient, the engine must route the
+        // exception through HANDLE_EXCEPTION → 500 (existing behavior).
+        Resource resource = new DefaultResource() {
+            @Override
+            public Set<String> getAllowedMethods() {
+                return Set.of("GET", "HEAD", "PATCH");
+            }
+            @Override
+            public Function<RestContext, ?> getFunction(DecisionPoint point) {
+                if (point == METHOD_ALLOWED) {
+                    return ctx -> getAllowedMethods().contains(
+                            ctx.getRequest().getRequestMethod().toUpperCase(Locale.US));
+                }
+                if (point == PATCH) {
+                    return ctx -> { throw new RuntimeException("still broken"); };
+                }
+                return super.getFunction(point);
+            }
+        };
+        ApiResponse res = engine.run(resource, request("PATCH", Headers.empty()));
+        assertThat(res.getStatus()).isEqualTo(500);
+    }
+
+    // --- #8: OPTIONS bypass of TOO_MANY_REQUESTS ------------------------
+
+    @Test
+    void optionsRequestBypassesTooManyRequestsDecision() {
+        // Resources that always return true from TOO_MANY_REQUESTS must NOT
+        // receive 429 on OPTIONS — the default graph skips rate-limiting
+        // for OPTIONS so CORS preflight is never blocked.
+        Resource resource = new DefaultResource() {
+            @Override
+            public Set<String> getAllowedMethods() {
+                return Set.of("GET", "HEAD", "OPTIONS");
+            }
+            @Override
+            public Function<RestContext, ?> getFunction(DecisionPoint point) {
+                if (point == METHOD_ALLOWED) {
+                    return ctx -> getAllowedMethods().contains(
+                            ctx.getRequest().getRequestMethod().toUpperCase(Locale.US));
+                }
+                if (point == TOO_MANY_REQUESTS) {
+                    return ctx -> true;
+                }
+                return super.getFunction(point);
+            }
+        };
+        ApiResponse res = engine.run(resource, request("OPTIONS", Headers.empty()));
+        assertThat(res.getStatus()).isEqualTo(200);
+    }
+
+    @Test
+    void nonOptionsRequestStillHitsTooManyRequestsDecision() {
+        Resource resource = new DefaultResource() {
+            @Override
+            public Function<RestContext, ?> getFunction(DecisionPoint point) {
+                if (point == TOO_MANY_REQUESTS) {
+                    return ctx -> true;
+                }
+                return super.getFunction(point);
+            }
+        };
+        ApiResponse res = engine.run(resource, request("GET", Headers.empty()));
+        assertThat(res.getStatus()).isEqualTo(429);
+    }
+
+    // --- #7: Problem.Builder violations immutability --------------------
+
+    @Test
+    void problemBuilderViolationsAreDefensivelyCopied() {
+        java.util.ArrayList<Problem.Violation> mutable = new java.util.ArrayList<>();
+        mutable.add(new Problem.Violation("name", "required"));
+        Problem p = Problem.builder()
+                .status(422)
+                .type(ProblemTypes.UNPROCESSABLE_ENTITY)
+                .violations(mutable)
+                .build();
+        // Later mutation of the caller's list must not leak into the Problem.
+        mutable.add(new Problem.Violation("email", "bad format"));
+        assertThat(p.getViolations()).hasSize(1);
+        // The stored list must be unmodifiable.
+        List<Problem.Violation> stored = p.getViolations();
+        assertThat(stored).isInstanceOf(List.class);
+        assertThat(stored).hasSize(1);
+        try {
+            stored.add(new Problem.Violation("x", "y"));
+            org.junit.jupiter.api.Assertions.fail("expected UnsupportedOperationException");
+        } catch (UnsupportedOperationException expected) {
+            // pass
+        }
     }
 }

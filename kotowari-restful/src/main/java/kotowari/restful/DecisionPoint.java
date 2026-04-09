@@ -52,10 +52,19 @@ public enum DecisionPoint {
     RESPOND_WITH_ENTITY,
     SERVICE_AVAILABLE,
     /**
-     * Rate-limit check per RFC 6585 §4. Returns {@code true} when the request
-     * should be allowed, {@code false} to return {@code 429 Too Many Requests}.
-     * Resources may stash a {@code Retry-After} value via
-     * {@link kotowari.restful.data.RestContext#addHeader(String, String)}.
+     * Rate-limit check per RFC 6585 §4. Returns {@code true} to return
+     * {@code 429 Too Many Requests}, {@code false} (the default) to allow
+     * the request through. Resources may stash a {@code Retry-After} value
+     * via {@link kotowari.restful.data.RestContext#addHeader(String, String)}.
+     *
+     * <p><b>OPTIONS bypass:</b> the engine always skips this decision for
+     * {@code OPTIONS} requests, so CORS preflight and capability-discovery
+     * requests are never rate-limited by the default graph. Resources that
+     * want to rate-limit {@code OPTIONS} can still do so by inspecting the
+     * request method from inside a custom {@code TOO_MANY_REQUESTS}
+     * function — but note that the default graph will short-circuit around
+     * the function for OPTIONS, so any such enforcement must be implemented
+     * outside the default decision path (e.g. via an enkan middleware).
      */
     TOO_MANY_REQUESTS,
     /**

@@ -149,8 +149,18 @@ public class Problem implements Serializable{
         /** Sets the RFC 9457 {@code instance} URI. */
         public Builder instance(URI instance) { this.instance = instance; return this; }
 
-        /** Sets the field-level violations list. */
-        public Builder violations(List<Violation> violations) { this.violations = violations; return this; }
+        /**
+         * Sets the field-level violations list. The list is defensively
+         * copied to an unmodifiable {@link List} so that later mutations of
+         * the caller's list cannot leak into the built {@link Problem}.
+         *
+         * @param violations the list to copy, or {@code null} to clear
+         * @return this builder
+         */
+        public Builder violations(List<Violation> violations) {
+            this.violations = violations == null ? null : List.copyOf(violations);
+            return this;
+        }
 
         /**
          * Builds the immutable {@link Problem}. If {@link #title(String)} was
