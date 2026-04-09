@@ -70,9 +70,10 @@ public class RestContext {
 
     /**
      * Key for the parsed {@code Prefer} request header directives (RFC 7240).
-     * Populated by the {@code INITIALIZE_CONTEXT} action. Always present
-     * (defaults to {@link PreferDirectives#NONE} when the request has no
-     * {@code Prefer} header).
+     * Populated by the {@code INITIALIZE_CONTEXT} action only when the
+     * request contains at least one recognized directive. If the key is
+     * absent, resources should treat it as equivalent to
+     * {@link PreferDirectives#NONE}.
      *
      * <p>Resources may inspect this to influence behavior beyond the automatic
      * handling the engine performs (e.g. to honor {@code wait=N} by choosing

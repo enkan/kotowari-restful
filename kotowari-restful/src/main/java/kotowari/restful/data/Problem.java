@@ -167,8 +167,15 @@ public class Problem implements Serializable{
          * not set, the standard reason phrase for the status is used.
          *
          * @return the constructed Problem
+         * @throws IllegalStateException if {@link #status(int)} was not set
+         *         or the value is outside the valid HTTP status range
+         *         {@code [100, 599]}
          */
         public Problem build() {
+            if (status < 100 || status > 599) {
+                throw new IllegalStateException(
+                        "Problem.Builder: status must be set to a valid HTTP status code in [100, 599]; got " + status);
+            }
             String resolvedTitle = title != null
                     ? title
                     : DEFAULT_TITLES.getOrDefault(status, "Problem occurs");

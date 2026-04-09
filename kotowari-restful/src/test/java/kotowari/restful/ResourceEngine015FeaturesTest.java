@@ -616,6 +616,55 @@ class ResourceEngine015FeaturesTest {
     // --- #7: Problem.Builder violations immutability --------------------
 
     @Test
+    void problemBuilderRejectsMissingStatus() {
+        // build() must not silently accept the default int (0) which would
+        // produce a nonsensical "status=0" Problem.
+        try {
+            Problem.builder().detail("no status set").build();
+            org.junit.jupiter.api.Assertions.fail("expected IllegalStateException");
+        } catch (IllegalStateException expected) {
+            assertThat(expected.getMessage()).contains("status");
+        }
+    }
+
+    @Test
+    void problemBuilderRejectsOutOfRangeStatus() {
+        try {
+            Problem.builder().status(999).build();
+            org.junit.jupiter.api.Assertions.fail("expected IllegalStateException for 999");
+        } catch (IllegalStateException expected) {
+            // pass
+        }
+        try {
+            Problem.builder().status(42).build();
+            org.junit.jupiter.api.Assertions.fail("expected IllegalStateException for 42");
+        } catch (IllegalStateException expected) {
+            // pass
+        }
+    }
+
+    @Test
+    void patchWithWildcardContentTypeIsRejected() {
+        // RFC 5789 §3.1: a wildcard Content-Type on a PATCH request is not
+        // a concrete patch format and must be rejected with 415 even if the
+        // resource advertises the matching concrete type.
+        Resource resource = patchResource(Set.of(PatchDocument.MERGE_PATCH_JSON));
+        HttpRequest starSlashStar = builder(new DefaultHttpRequest())
+                .set(HttpRequest::setRequestMethod, "PATCH")
+                .set(HttpRequest::setContentType, "*/*")
+                .set(HttpRequest::setHeaders, Headers.empty())
+                .build();
+        assertThat(engine.run(resource, starSlashStar).getStatus()).isEqualTo(415);
+
+        HttpRequest applicationStar = builder(new DefaultHttpRequest())
+                .set(HttpRequest::setRequestMethod, "PATCH")
+                .set(HttpRequest::setContentType, "application/*")
+                .set(HttpRequest::setHeaders, Headers.empty())
+                .build();
+        assertThat(engine.run(resource, applicationStar).getStatus()).isEqualTo(415);
+    }
+
+    @Test
     void problemBuilderViolationsAreDefensivelyCopied() {
         java.util.ArrayList<Problem.Violation> mutable = new java.util.ArrayList<>();
         mutable.add(new Problem.Violation("name", "required"));

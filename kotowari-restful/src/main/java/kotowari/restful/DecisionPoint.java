@@ -68,11 +68,13 @@ public enum DecisionPoint {
      */
     TOO_MANY_REQUESTS,
     /**
-     * Preconditional requirement check per RFC 6585 §3. Returns {@code true}
-     * when the request carries a precondition header ({@code If-Match} /
-     * {@code If-Unmodified-Since}) that the resource required, or when the
-     * resource does not require one. Returns {@code false} to return
-     * {@code 428 Precondition Required}.
+     * Precondition requirement check per RFC 6585 §3. Returns {@code true}
+     * to reject the request with {@code 428 Precondition Required}, meaning
+     * the resource requires a precondition header such as {@code If-Match}
+     * or {@code If-Unmodified-Since} and the request did not supply one.
+     * Returns {@code false} (the default) to continue processing, meaning
+     * the request supplied the required precondition or the resource does
+     * not require one.
      */
     PRECONDITION_REQUIRED,
     UNMODIFIED_SINCE,

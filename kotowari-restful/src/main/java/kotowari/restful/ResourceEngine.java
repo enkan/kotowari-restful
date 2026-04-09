@@ -27,7 +27,6 @@ import kotowari.restful.trace.TraceStore;
 
 import java.net.URI;
 import java.util.LinkedHashSet;
-import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
 import java.util.StringJoiner;
@@ -552,18 +551,41 @@ public class ResourceEngine {
     }
 
     /**
-     * Returns {@code true} when {@code requested} satisfies {@code accepted}
-     * on a {@code type/subtype} basis, treating {@code *} as a wildcard match.
-     * Avoids relying on {@link MediaType#isCompatible(MediaType)} which
+     * Returns {@code true} when the {@code requested} media type satisfies
+     * the resource-advertised {@code accepted} media type on a
+     * {@code type/subtype} basis.
+     *
+     * <p>Wildcards are asymmetric: {@code *} is honored in the
+     * {@code accepted} (resource-advertised) position as a wildcard, but
+     * <b>rejected</b> in the {@code requested} (request Content-Type)
+     * position. A PATCH request with a wildcard {@code Content-Type}
+     * (e.g. {@code &#42;/&#42;} or {@code application/&#42;}) is not a
+     * valid patch format advertisement and must be treated as unsupported
+     * to prevent accidental acceptance of bodies the server cannot actually
+     * parse.
+     *
+     * <p>Avoids relying on {@link MediaType#isCompatible(MediaType)} which
      * internally touches {@code RuntimeDelegate} in some JAX-RS builds.
      */
     private static boolean isCompatibleType(MediaType accepted, MediaType requested) {
+        // A wildcard on the request side is not a concrete Content-Type and
+        // cannot satisfy a concrete Accept-Patch entry.
+        if ("*".equals(requested.getType()) || "*".equals(requested.getSubtype())) {
+            return false;
+        }
         return typeMatches(accepted.getType(), requested.getType())
                 && typeMatches(accepted.getSubtype(), requested.getSubtype());
     }
 
-    private static boolean typeMatches(String a, String b) {
-        return "*".equals(a) || "*".equals(b) || a.equalsIgnoreCase(b);
+    /**
+     * Compares one component of an {@code accepted} media type against the
+     * same component of a {@code requested} media type. The {@code accepted}
+     * side may carry a {@code *} wildcard; the {@code requested} side is
+     * expected to be concrete (wildcards there are filtered upstream in
+     * {@link #isCompatibleType(MediaType, MediaType)}).
+     */
+    private static boolean typeMatches(String accepted, String requested) {
+        return "*".equals(accepted) || accepted.equalsIgnoreCase(requested);
     }
 
     private static final Function<RestContext, ?> IF_MATCH_STAR_FUNC = context -> Objects.equals("*", context.getRequest().getHeaders().get("if-match"));
