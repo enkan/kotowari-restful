@@ -9,6 +9,9 @@ import kotowari.restful.resource.AllowedMethods;
 import kotowari.restful.data.Problem;
 import kotowari.restful.data.RestContext;
 import kotowari.restful.example.data.Address;
+import net.unit8.raoh.Err;
+import net.unit8.raoh.Ok;
+import tools.jackson.databind.JsonNode;
 
 import jakarta.inject.Inject;
 import jakarta.validation.ConstraintViolation;
@@ -55,17 +58,19 @@ public class AddressesResource {
     }
 
     @Decision(value = MALFORMED, method={"POST"})
-    public Problem isPostMalformed(Address body) {
-        if (body.street() == null || body.street().isBlank()) {
-            return Problem.valueOf(400, "Street is required");
-        }
-        if (body.city() == null || body.city().isBlank()) {
-            return Problem.valueOf(400, "City is required");
-        }
-        if (body.countryCode() == null || body.countryCode().length() != 2) {
-            return Problem.valueOf(400, "Country code must be 2 characters");
-        }
-        return null;
+    public Problem isPostMalformed(JsonNode body, RestContext context) {
+        return switch (AddressJsonDecoders.ADDRESS.decode(body)) {
+            case Ok<Address> ok -> {
+                context.put(ADDRESS, ok.value());
+                yield null;
+            }
+            case Err<Address> err -> {
+                List<Problem.Violation> violations = err.issues().asList().stream()
+                        .map(issue -> new Problem.Violation(issue.path().toString(), issue.code(), issue.message()))
+                        .toList();
+                yield Problem.fromViolationList(violations);
+            }
+        };
     }
 
     @Decision(HANDLE_OK)
@@ -79,7 +84,8 @@ public class AddressesResource {
     }
 
     @Decision(POST)
-    public boolean create(Address body, DSLContext dsl, RestContext context) {
+    public boolean create(DSLContext dsl, RestContext context) {
+        Address body = context.get(ADDRESS).orElseThrow();
         dsl.transaction(cfg -> {
             var rec = org.jooq.impl.DSL.using(cfg)
                     .insertInto(table("address"),

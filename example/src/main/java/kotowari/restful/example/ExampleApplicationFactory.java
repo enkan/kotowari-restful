@@ -6,9 +6,11 @@ import enkan.config.ApplicationFactory;
 import enkan.web.data.HttpRequest;
 import enkan.web.data.HttpResponse;
 import enkan.web.middleware.ContentNegotiationMiddleware;
+import enkan.web.middleware.IdempotencyKeyMiddleware;
 import enkan.web.middleware.MultipartParamsMiddleware;
 import enkan.web.middleware.NestedParamsMiddleware;
 import enkan.web.middleware.ParamsMiddleware;
+import enkan.web.middleware.session.MemoryStore;
 import enkan.middleware.jooq.JooqDslContextMiddleware;
 import enkan.system.inject.ComponentInjector;
 import kotowari.inject.ParameterInjector;
@@ -49,6 +51,7 @@ import static enkan.util.Predicates.envIn;
  *   <li>{@code RoutingMiddleware} — matches the request path and sets the target resource class on the request</li>
  *   <li>{@code JooqDslContextMiddleware} — provides a jOOQ DSLContext on every request</li>
  *   <li>{@code SerDesMiddleware} — deserializes the JSON request body and serializes the response object to JSON</li>
+ *   <li>{@code IdempotencyKeyMiddleware} — replays cached responses for repeated POST/PATCH requests carrying the same {@code Idempotency-Key} header (Zalando §230)</li>
  *   <li>{@code ResourceInvokerMiddleware} — drives the kotowari-restful decision graph and calls the resource class</li>
  * </ol>
  */
@@ -97,6 +100,9 @@ public class ExampleApplicationFactory implements ApplicationFactory<HttpRequest
         app.use(new RoutingMiddleware(routes));
         app.use(new JooqDslContextMiddleware<>());
         app.use(new SerDesMiddleware<>());
+        app.use(builder(new IdempotencyKeyMiddleware())
+                .set(IdempotencyKeyMiddleware::setStore, new MemoryStore())
+                .build());
         app.use(resourceInvoker);
         return app;
     }
