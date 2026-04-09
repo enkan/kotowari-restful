@@ -97,6 +97,76 @@ public class Problem implements Serializable{
     }
 
     /**
+     * Returns a fluent {@link Builder} for constructing a {@link Problem} with
+     * a custom {@code type} URI and other optional fields, as recommended by
+     * RFC 9457 §4.2.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * Problem.builder()
+     *     .status(429)
+     *     .type(ProblemTypes.TOO_MANY_REQUESTS)
+     *     .detail("rate limit exceeded; retry in 30s")
+     *     .build();
+     * }</pre>
+     *
+     * @return a new builder
+     */
+    public static Builder builder() {
+        return new Builder();
+    }
+
+    /**
+     * Fluent builder for {@link Problem} instances with RFC 9457 {@code type}
+     * URIs and other optional fields. Created via {@link Problem#builder()}.
+     *
+     * <p>{@link #status(int)} is the only required call; {@link #title(String)}
+     * defaults to the standard HTTP reason phrase for the status. Unset fields
+     * are omitted from the JSON serialization.
+     */
+    public static final class Builder {
+        private URI type;
+        private String title;
+        private int status;
+        private String detail;
+        private URI instance;
+        private List<Violation> violations;
+
+        private Builder() {}
+
+        /** Sets the RFC 9457 {@code type} URI. */
+        public Builder type(URI type) { this.type = type; return this; }
+
+        /** Sets the RFC 9457 {@code title}. Defaults to the standard reason phrase. */
+        public Builder title(String title) { this.title = title; return this; }
+
+        /** Sets the HTTP status code (required). */
+        public Builder status(int status) { this.status = status; return this; }
+
+        /** Sets the per-occurrence {@code detail} message. */
+        public Builder detail(String detail) { this.detail = detail; return this; }
+
+        /** Sets the RFC 9457 {@code instance} URI. */
+        public Builder instance(URI instance) { this.instance = instance; return this; }
+
+        /** Sets the field-level violations list. */
+        public Builder violations(List<Violation> violations) { this.violations = violations; return this; }
+
+        /**
+         * Builds the immutable {@link Problem}. If {@link #title(String)} was
+         * not set, the standard reason phrase for the status is used.
+         *
+         * @return the constructed Problem
+         */
+        public Problem build() {
+            String resolvedTitle = title != null
+                    ? title
+                    : DEFAULT_TITLES.getOrDefault(status, "Problem occurs");
+            return new Problem(type, resolvedTitle, status, detail, instance, violations);
+        }
+    }
+
+    /**
      * A single field-level validation error included in a Problem response.
      */
     public record Violation(String field, String code, String message) implements Serializable {

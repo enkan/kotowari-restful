@@ -1,9 +1,17 @@
 package kotowari.restful;
 
 import enkan.web.data.HttpRequest;
+import enkan.web.data.SseEmitter;
+import enkan.web.data.StreamingBody;
+import enkan.web.util.ETagUtils;
+import enkan.web.util.HttpDateFormat;
 import enkan.exception.UnrecoverableException;
+import jakarta.ws.rs.core.MediaType;
+import kotowari.data.BodyDeserializable;
 import kotowari.restful.data.ApiResponse;
 import kotowari.restful.data.DefaultResource;
+import kotowari.restful.data.PatchDocument;
+import kotowari.restful.data.PreferDirectives;
 import kotowari.restful.data.Problem;
 import kotowari.restful.data.Resource;
 import kotowari.restful.data.RestContext;
@@ -19,6 +27,7 @@ import kotowari.restful.trace.TraceStore;
 
 import java.net.URI;
 import java.util.LinkedHashSet;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
 import java.util.StringJoiner;
@@ -116,9 +125,21 @@ public class ResourceEngine {
         }
         ApiResponse response = runDecisionGraph(context);
         int status = response.getStatus();
-        if (status == 405 || ("OPTIONS".equalsIgnoreCase(request.getRequestMethod()) && status >= 200 && status < 300)) {
+        boolean methodNotAllowed = status == 405;
+        boolean successfulOptions = "OPTIONS".equalsIgnoreCase(request.getRequestMethod())
+                && status >= 200 && status < 300;
+        if (methodNotAllowed || successfulOptions) {
             response.getHeaders().put("Allow", allowHeaderValue(resource.getAllowedMethods()));
+            // RFC 5789 §3.1: Accept-Patch SHOULD be emitted alongside Allow
+            // whenever the resource supports PATCH so clients can discover
+            // the accepted patch document formats.
+            Set<MediaType> patchTypes = resource.getAcceptPatchMediaTypes();
+            if (!patchTypes.isEmpty() && resource.getAllowedMethods().contains("PATCH")) {
+                response.getHeaders().put("Accept-Patch", acceptPatchHeaderValue(patchTypes));
+            }
         }
+        Object body = response.getBody();
+        boolean streaming = body instanceof StreamingBody || body instanceof SseEmitter;
         if ("HEAD".equalsIgnoreCase(request.getRequestMethod()) || status == 204 || status == 304) {
             response.setBody(null);
         }
@@ -127,6 +148,17 @@ public class ResourceEngine {
             response.getHeaders().remove("Content-Length");
             response.getHeaders().remove("Content-Range");
             response.getHeaders().remove("Trailer");
+        }
+        // For streaming bodies, never pre-set Content-Length — the adapter
+        // writes chunked transfer-encoding. SSE also needs a text/event-stream
+        // Content-Type and cache-control: no-cache per the WHATWG HTML spec.
+        if (streaming && response.getBody() != null) {
+            response.getHeaders().remove("Content-Length");
+            if (body instanceof SseEmitter) {
+                response.getHeaders().putIfAbsent("Content-Type", "text/event-stream; charset=UTF-8");
+                response.getHeaders().putIfAbsent("Cache-Control", "no-cache");
+                response.getHeaders().putIfAbsent("Connection", "keep-alive");
+            }
         }
         // RFC 7231 §7.1.4: set Vary when content negotiation headers are present.
         // Merge with any existing Vary value set by the resource; preserve "Vary: *".
@@ -142,10 +174,22 @@ public class ResourceEngine {
             if (request.getHeaders().containsKey("accept-language")) varyTokens.add("Accept-Language");
             if (request.getHeaders().containsKey("accept-charset"))  varyTokens.add("Accept-Charset");
             if (request.getHeaders().containsKey("accept-encoding")) varyTokens.add("Accept-Encoding");
+            // Prefer also shapes the representation, so add it to Vary.
+            if (request.getHeaders().containsKey("prefer"))          varyTokens.add("Prefer");
             if (!varyTokens.isEmpty()) {
                 response.getHeaders().remove("Vary");
                 response.getHeaders().put("Vary", String.join(", ", varyTokens));
             }
+        }
+        // RFC 7240 §4.2 / §4.5: apply return=minimal / return=representation
+        // to successful 2xx responses and echo Preference-Applied.
+        PreferDirectives prefer = context.get(RestContext.PREFER_DIRECTIVES).orElse(null);
+        if (prefer != null && status >= 200 && status < 300) {
+            if (prefer.returnMinimal() && !streaming) {
+                response.setBody(null);
+            }
+            prefer.toPreferenceApplied().ifPresent(applied ->
+                    response.getHeaders().put("Preference-Applied", applied));
         }
         if (tracingEnabled) {
             String traceId = UUID.randomUUID().toString().replace("-", "").substring(0, 8);
@@ -192,6 +236,16 @@ public class ResourceEngine {
      *       — when the resource function returns a {@link String} or {@link URI},
      *       it is set as the {@code Location} header and the result is changed to
      *       {@code true} (routes to the redirect handler), satisfying RFC 7231 §6.4.</li>
+     *   <li>{@code ETAG_MATCHES_FOR_IF_MATCH}, {@code ETAG_MATCHES_FOR_IF_NONE} —
+     *       when the resource function returns a {@link String} (an entity-tag),
+     *       it is compared against the request's {@code If-Match} /
+     *       {@code If-None-Match} header via
+     *       {@link enkan.web.util.ETagUtils#matchesHeader(String, String, boolean)}
+     *       (strong comparison for If-Match per RFC 9110 §13.1.1, weak comparison
+     *       for If-None-Match per §13.1.2). The resource ETag is also stashed on
+     *       the response as the {@code ETag} header so downstream
+     *       {@code ConditionalMiddleware} can reuse it. Boolean returns bypass
+     *       this transform and preserve backward compatibility.</li>
      * </ul>
      *
      * <p>{@link Resource#getAllowedMethods()} is delegated to the original resource
@@ -201,11 +255,25 @@ public class ResourceEngine {
      * @return a wrapped resource with header-aware function overrides
      */
     private static Resource wrapResource(Resource resource) {
+        Set<MediaType> acceptPatchMediaTypes = resource.getAcceptPatchMediaTypes();
         return new Resource() {
             @Override
             public Function<RestContext, ?> getFunction(DecisionPoint point) {
                 Function<RestContext, ?> original = resource.getFunction(point);
                 return switch (point) {
+                    case INITIALIZE_CONTEXT -> ctx -> {
+                        // Always parse Prefer (RFC 7240) so resources and the
+                        // post-graph transform can observe it.
+                        String preferHeader = ctx.getRequest().getHeaders().get("prefer");
+                        PreferDirectives directives = PreferDirectives.parse(preferHeader);
+                        if (directives != PreferDirectives.NONE) {
+                            ctx.put(RestContext.PREFER_DIRECTIVES, directives);
+                        }
+                        if (original != null) {
+                            return original.apply(ctx);
+                        }
+                        return true;
+                    };
                     case AUTHORIZED -> original == null ? null : ctx -> {
                         Object result = original.apply(ctx);
                         if (result instanceof String challenge) {
@@ -216,6 +284,66 @@ public class ResourceEngine {
                     };
                     case MOVED_PERMANENTLY, MOVED_TEMPORARILY, POST_REDIRECT ->
                         original == null ? null : redirectHandler(original);
+                    case ETAG_MATCHES_FOR_IF_MATCH ->
+                        original == null ? null : etagComparator(original, "if-match", false);
+                    case ETAG_MATCHES_FOR_IF_NONE ->
+                        original == null ? null : etagComparator(original, "if-none-match", true);
+                    case PATCH -> ctx -> {
+                        // RFC 7240 §4.4 handling=lenient: catch RuntimeException
+                        // from the PATCH handler and surface it as a 400 Problem
+                        // rather than a 500. Applies only when the client opts in.
+                        PreferDirectives prefer = ctx.get(RestContext.PREFER_DIRECTIVES).orElse(null);
+                        Function<RestContext, ?> patch = original != null ? original : c -> true;
+                        if (prefer != null && prefer.handlingLenient()) {
+                            try {
+                                return patch.apply(ctx);
+                            } catch (RuntimeException e) {
+                                LOG.debug("Lenient PATCH handling caught exception", e);
+                                return Problem.builder()
+                                        .status(400)
+                                        .type(kotowari.restful.data.ProblemTypes.BAD_REQUEST)
+                                        .detail(e.getMessage())
+                                        .build();
+                            }
+                        }
+                        return patch.apply(ctx);
+                    };
+                    case KNOWN_CONTENT_TYPE -> ctx -> {
+                        // For PATCH requests with a declared Accept-Patch media
+                        // type registry, reject unsupported Content-Type up
+                        // front (RFC 5789 §3.1 mandates 415 on unsupported
+                        // patch formats).
+                        String method = ctx.getRequest().getRequestMethod();
+                        if ("PATCH".equalsIgnoreCase(method) && !acceptPatchMediaTypes.isEmpty()) {
+                            String contentType = ctx.getRequest().getContentType();
+                            if (contentType == null || contentType.isBlank()) {
+                                return false;
+                            }
+                            MediaType requestType = parseMediaType(contentType);
+                            if (requestType == null) {
+                                return false;
+                            }
+                            boolean accepted = acceptPatchMediaTypes.stream()
+                                    .anyMatch(mt -> isCompatibleType(mt, requestType));
+                            if (!accepted) {
+                                return false;
+                            }
+                            // Stash a tagged PatchDocument once the body has
+                            // been deserialized upstream so the PATCH action
+                            // can dispatch without re-parsing Content-Type.
+                            if (ctx.getRequest() instanceof BodyDeserializable bd) {
+                                Object body = bd.getDeserializedBody();
+                                if (body != null) {
+                                    ctx.put(RestContext.PATCH_DOCUMENT,
+                                            new PatchDocument(requestType, body));
+                                }
+                            }
+                        }
+                        if (original != null) {
+                            return original.apply(ctx);
+                        }
+                        return true;
+                    };
                     default -> original;
                 };
             }
@@ -224,6 +352,35 @@ public class ResourceEngine {
             public Set<String> getAllowedMethods() {
                 return resource.getAllowedMethods();
             }
+
+            @Override
+            public Set<MediaType> getAcceptPatchMediaTypes() {
+                return acceptPatchMediaTypes;
+            }
+        };
+    }
+
+    /**
+     * Wraps an ETag-returning resource function so that string returns are
+     * compared against the request header via {@link ETagUtils#matchesHeader}.
+     * Boolean and other non-string returns are passed through unchanged to
+     * preserve backward compatibility.
+     */
+    private static Function<RestContext, ?> etagComparator(
+            Function<RestContext, ?> original,
+            String headerName,
+            boolean weakComparison) {
+        return ctx -> {
+            Object result = original.apply(ctx);
+            if (result instanceof String etag) {
+                // Stash the resource-supplied ETag on the response so that a
+                // downstream ConditionalMiddleware (or clients inspecting 412
+                // responses) can see it.
+                ctx.addHeader("ETag", etag);
+                String headerValue = ctx.getRequest().getHeaders().get(headerName);
+                return ETagUtils.matchesHeader(headerValue, etag, weakComparison);
+            }
+            return result;
         };
     }
 
@@ -247,6 +404,71 @@ public class ResourceEngine {
         StringJoiner joiner = new StringJoiner(", ");
         methods.stream().sorted().forEach(joiner::add);
         return joiner.toString();
+    }
+
+    private static String acceptPatchHeaderValue(Set<MediaType> mediaTypes) {
+        StringJoiner joiner = new StringJoiner(", ");
+        mediaTypes.stream()
+                .map(ResourceEngine::formatMediaType)
+                .sorted()
+                .forEach(joiner::add);
+        return joiner.toString();
+    }
+
+    /**
+     * Formats a {@link MediaType} without relying on
+     * {@link MediaType#toString()}, which requires a {@code RuntimeDelegate}
+     * implementation on the classpath. Kotowari-Restful aims to stay
+     * pluggable at the JAX-RS runtime layer, so this helper renders only the
+     * {@code type/subtype} portion — which is sufficient for
+     * {@code Accept-Patch} and similar discovery headers.
+     */
+    private static String formatMediaType(MediaType mediaType) {
+        return mediaType.getType() + "/" + mediaType.getSubtype();
+    }
+
+    /**
+     * Parses a {@code Content-Type} header value into a {@link MediaType}
+     * without delegating to {@link MediaType#valueOf(String)}, which requires
+     * a JAX-RS {@code RuntimeDelegate} on the classpath. Only the type and
+     * subtype are extracted; parameters (e.g. {@code ;charset=UTF-8}) are
+     * dropped because Kotowari-Restful compares patch media types on
+     * {@code type/subtype} alone.
+     *
+     * @param raw the raw Content-Type header value
+     * @return the parsed media type, or {@code null} if the header is malformed
+     */
+    private static MediaType parseMediaType(String raw) {
+        String value = raw.strip();
+        int semi = value.indexOf(';');
+        if (semi >= 0) {
+            value = value.substring(0, semi).strip();
+        }
+        int slash = value.indexOf('/');
+        if (slash <= 0 || slash == value.length() - 1) {
+            return null;
+        }
+        String type = value.substring(0, slash).trim();
+        String subtype = value.substring(slash + 1).trim();
+        if (type.isEmpty() || subtype.isEmpty()) {
+            return null;
+        }
+        return new MediaType(type, subtype);
+    }
+
+    /**
+     * Returns {@code true} when {@code requested} satisfies {@code accepted}
+     * on a {@code type/subtype} basis, treating {@code *} as a wildcard match.
+     * Avoids relying on {@link MediaType#isCompatible(MediaType)} which
+     * internally touches {@code RuntimeDelegate} in some JAX-RS builds.
+     */
+    private static boolean isCompatibleType(MediaType accepted, MediaType requested) {
+        return typeMatches(accepted.getType(), requested.getType())
+                && typeMatches(accepted.getSubtype(), requested.getSubtype());
+    }
+
+    private static boolean typeMatches(String a, String b) {
+        return "*".equals(a) || "*".equals(b) || a.equalsIgnoreCase(b);
     }
 
     private static final Function<RestContext, ?> IF_MATCH_STAR_FUNC = context -> Objects.equals("*", context.getRequest().getHeaders().get("if-match"));
@@ -327,7 +549,7 @@ public class ResourceEngine {
             handleNotModified);
         Node<?> ifModifiedSinceValidDate = decision(IF_MODIFIED_SINCE_VALID_DATE,
             context -> {
-                var parsed = HttpDateParser.parse(context.getRequest().getHeaders().get("if-modified-since"));
+                var parsed = HttpDateFormat.parse(context.getRequest().getHeaders().get("if-modified-since"));
                 if (parsed.isPresent()) {
                     context.put(RestContext.IF_MODIFIED_SINCE_DATE, new kotowari.restful.data.HttpDate(parsed.get()));
                     return true;
@@ -366,7 +588,7 @@ public class ResourceEngine {
 
         Node<?> ifUnmodifiedSinceValidDate = decision(IF_UNMODIFIED_SINCE_VALID_DATE,
             context -> {
-                var parsed = HttpDateParser.parse(context.getRequest().getHeaders().get("if-unmodified-since"));
+                var parsed = HttpDateFormat.parse(context.getRequest().getHeaders().get("if-unmodified-since"));
                 if (parsed.isPresent()) {
                     context.put(RestContext.IF_UNMODIFIED_SINCE_DATE, new kotowari.restful.data.HttpDate(parsed.get()));
                     return true;
@@ -394,7 +616,15 @@ public class ResourceEngine {
             ifMatchStar,
             ifUnmodifiedSinceExists);
 
-        Node<?> exists = decision(EXISTS, ifMatchExists, doesIfMatchStarExistForMissing);
+        Node<?> handlePreconditionRequired = handler(HANDLE_PRECONDITION_REQUIRED, 428, "Precondition required.");
+        // RFC 6585 §3: when the resource requires a precondition and the
+        // request provides neither If-Match nor If-Unmodified-Since, reject
+        // with 428. Only meaningful for state-changing methods.
+        Node<?> preconditionRequired = decision(PRECONDITION_REQUIRED,
+            handlePreconditionRequired,
+            ifMatchExists);
+
+        Node<?> exists = decision(EXISTS, preconditionRequired, doesIfMatchStarExistForMissing);
         Node<?> handleUnprocessableEntity = handler(HANDLE_UNPROCESSABLE_ENTITY, 422, "Unprocessable entity.");
         Node<?> processable = decision(PROCESSABLE, exists, handleUnprocessableEntity);
         Node<?> handleNotAcceptable = handler(HANDLE_NOT_ACCEPTABLE, 406, "No acceptable resource available.");
@@ -453,8 +683,15 @@ public class ResourceEngine {
         Node<?> handleUnknownMethod = handler(HANDLE_UNKNOWN_METHOD, 501, "Unknown method.");
         Node<?> knownMethod = decision(KNOWN_METHOD, uriTooLong, handleUnknownMethod);
 
+        Node<?> handleTooManyRequests = handler(HANDLE_TOO_MANY_REQUESTS, 429, "Too many requests.");
+        // RFC 6585 §4: rate-limiting check. Resource functions that return
+        // false allow the request; returning true triggers 429.
+        Node<?> tooManyRequests = decision(TOO_MANY_REQUESTS,
+            handleTooManyRequests,
+            knownMethod);
+
         Node<?> handleServiceNotAvailable = handler(HANDLE_SERVICE_NOT_AVAILABLE, 503, "Service not available.");
-        Node<?> serviceAvailable = decision(SERVICE_AVAILABLE, knownMethod, handleServiceNotAvailable);
+        Node<?> serviceAvailable = decision(SERVICE_AVAILABLE, tooManyRequests, handleServiceNotAvailable);
 
         return action(INITIALIZE_CONTEXT, serviceAvailable);
     }

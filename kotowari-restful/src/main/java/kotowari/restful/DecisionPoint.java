@@ -51,6 +51,21 @@ public enum DecisionPoint {
     PROCESSABLE,
     RESPOND_WITH_ENTITY,
     SERVICE_AVAILABLE,
+    /**
+     * Rate-limit check per RFC 6585 §4. Returns {@code true} when the request
+     * should be allowed, {@code false} to return {@code 429 Too Many Requests}.
+     * Resources may stash a {@code Retry-After} value via
+     * {@link kotowari.restful.data.RestContext#addHeader(String, String)}.
+     */
+    TOO_MANY_REQUESTS,
+    /**
+     * Preconditional requirement check per RFC 6585 §3. Returns {@code true}
+     * when the request carries a precondition header ({@code If-Match} /
+     * {@code If-Unmodified-Since}) that the resource required, or when the
+     * resource does not require one. Returns {@code false} to return
+     * {@code 428 Precondition Required}.
+     */
+    PRECONDITION_REQUIRED,
     UNMODIFIED_SINCE,
     URI_TOO_LONG,
     VALID_CONTENT_HEADER,
@@ -114,5 +129,7 @@ public enum DecisionPoint {
     HANDLE_EXCEPTION,
     HANDLE_NOT_IMPLEMENTED,
     HANDLE_UNKNOWN_METHOD,
-    HANDLE_SERVICE_NOT_AVAILABLE
+    HANDLE_SERVICE_NOT_AVAILABLE,
+    HANDLE_TOO_MANY_REQUESTS,
+    HANDLE_PRECONDITION_REQUIRED
 }

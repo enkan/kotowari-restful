@@ -68,6 +68,32 @@ public class RestContext {
     public static final ContextKey<HttpDate> IF_UNMODIFIED_SINCE_DATE =
             ContextKey.of("ifUnmodifiedSinceDate", HttpDate.class);
 
+    /**
+     * Key for the parsed {@code Prefer} request header directives (RFC 7240).
+     * Populated by the {@code INITIALIZE_CONTEXT} action. Always present
+     * (defaults to {@link PreferDirectives#NONE} when the request has no
+     * {@code Prefer} header).
+     *
+     * <p>Resources may inspect this to influence behavior beyond the automatic
+     * handling the engine performs (e.g. to honor {@code wait=N} by choosing
+     * synchronous vs asynchronous processing).
+     */
+    public static final ContextKey<PreferDirectives> PREFER_DIRECTIVES =
+            ContextKey.of("preferDirectives", PreferDirectives.class);
+
+    /**
+     * Key for the patch document parsed from a PATCH request body, keyed by
+     * media type. The body is stored under this key by the
+     * {@code KNOWN_CONTENT_TYPE} decision when the request is a PATCH and the
+     * {@code Content-Type} is one of the supported patch formats.
+     *
+     * <p>Resources handling {@code PATCH} can retrieve the parsed patch via
+     * {@link #get(ContextKey)} or accept a {@link PatchDocument} parameter and
+     * have it injected automatically.
+     */
+    public static final ContextKey<PatchDocument> PATCH_DOCUMENT =
+            ContextKey.of("patchDocument", PatchDocument.class);
+
     private final Resource resource;
     private final HttpRequest request;
     private final Map<ContextKey<?>, Object> values;
