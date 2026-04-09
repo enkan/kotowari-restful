@@ -17,7 +17,7 @@ A declarative RESTful API framework for Java, built on [enkan](https://github.co
 ## Requirements
 
 - Java 25+
-- enkan/kotowari 0.14.0+
+- enkan/kotowari 0.15.0+
 
 ## Project Structure
 
@@ -39,7 +39,7 @@ Add the following dependency to your `pom.xml`:
 <dependency>
     <groupId>net.unit8.enkan</groupId>
     <artifactId>kotowari-restful</artifactId>
-    <version>0.14.0</version>
+    <version>0.15.0</version>
 </dependency>
 ```
 
@@ -49,7 +49,7 @@ For development-time request tracing, also add:
 <dependency>
     <groupId>net.unit8.enkan</groupId>
     <artifactId>kotowari-restful-devel</artifactId>
-    <version>0.14.0</version>
+    <version>0.15.0</version>
 </dependency>
 ```
 

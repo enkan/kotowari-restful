@@ -18,12 +18,15 @@ echo "Running mvn versions:set -DnewVersion=$VERSION ..."
 mvn -f "$ROOT_DIR/pom.xml" versions:set -DnewVersion="$VERSION" -DgenerateBackupPoms=false
 echo "Project version updated -> $VERSION"
 
-# 2. Update <version> in README.md (only the one inside the <dependency> block)
-sed -i '' "/<artifactId>kotowari-restful<\/artifactId>/{n;s|<version>[^<]*</version>|<version>$VERSION</version>|;}" "$README_FILE"
+# 2. Update versions in README.md
+# Update all <version> tags following a kotowari-restful artifactId (covers -devel and core)
+sed -i "/kotowari-restful/{n;s|<version>[^<]*</version>|<version>$VERSION</version>|;}" "$README_FILE"
+# Update the enkan/kotowari requirements line (e.g. "enkan/kotowari 0.15.0+")
+sed -i "s|enkan/kotowari [0-9][^+]*+|enkan/kotowari $VERSION+|" "$README_FILE"
 echo "README.md updated -> $VERSION"
 
 # 3. Update <enkan.version> in example/pom.xml
 if [[ -f "$EXAMPLE_POM" ]]; then
-  sed -i '' "s|<enkan\.version>[^<]*</enkan\.version>|<enkan.version>$VERSION</enkan.version>|g" "$EXAMPLE_POM"
+  sed -i "s|<enkan\.version>[^<]*</enkan\.version>|<enkan.version>$VERSION</enkan.version>|g" "$EXAMPLE_POM"
   echo "example/pom.xml updated -> $VERSION"
 fi
