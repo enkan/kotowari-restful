@@ -7,6 +7,11 @@ import kotowari.restful.data.Problem;
 import kotowari.restful.data.RestContext;
 import kotowari.restful.example.data.Address;
 import kotowari.restful.resource.AllowedMethods;
+import net.unit8.raoh.Err;
+import net.unit8.raoh.Ok;
+import tools.jackson.databind.JsonNode;
+
+import java.util.List;
 
 import org.jooq.DSLContext;
 import org.jooq.Record;
@@ -29,10 +34,11 @@ import static org.jooq.impl.DSL.table;
 public class AddressResource {
 
     static final ContextKey<Address> ADDRESS = ContextKey.of(Address.class);
+    static final ContextKey<Address> ADDRESS_BODY = ContextKey.of("addressBody", Address.class);
 
     @Decision(EXISTS)
     public boolean exists(Parameters params, DSLContext dsl, RestContext context) {
-        Long id = Long.valueOf(params.get("id").toString());
+        long id = Long.parseLong(params.get("id"));
         Record rec = dsl.select(ID, CARE_OF, STREET, ADDITIONAL, CITY, ZIP, COUNTRY_CODE)
                 .from(table("address"))
                 .where(ID.eq(id))
@@ -43,17 +49,19 @@ public class AddressResource {
     }
 
     @Decision(value = MALFORMED, method = {"PUT"})
-    public Problem validatePut(Address body) {
-        if (body.street() == null || body.street().isBlank()) {
-            return Problem.valueOf(400, "Street is required");
-        }
-        if (body.city() == null || body.city().isBlank()) {
-            return Problem.valueOf(400, "City is required");
-        }
-        if (body.countryCode() == null || body.countryCode().length() != 2) {
-            return Problem.valueOf(400, "Country code must be 2 characters");
-        }
-        return null;
+    public Problem validatePut(JsonNode body, RestContext context) {
+        return switch (AddressJsonDecoders.ADDRESS.decode(body)) {
+            case Ok<Address> ok -> {
+                context.put(ADDRESS_BODY, ok.value());
+                yield null;
+            }
+            case Err<Address> err -> {
+                List<Problem.Violation> violations = err.issues().asList().stream()
+                        .map(issue -> new Problem.Violation(issue.path().toString(), issue.code(), issue.message()))
+                        .toList();
+                yield Problem.fromViolationList(violations);
+            }
+        };
     }
 
     @Decision(HANDLE_OK)
@@ -62,8 +70,9 @@ public class AddressResource {
     }
 
     @Decision(PUT)
-    public void update(Address body, DSLContext dsl, RestContext context) {
+    public void update(DSLContext dsl, RestContext context) {
         Address address = context.get(ADDRESS).orElseThrow();
+        Address body = context.get(ADDRESS_BODY).orElseThrow();
         dsl.transaction(cfg -> {
             org.jooq.impl.DSL.using(cfg)
                     .update(table("address"))

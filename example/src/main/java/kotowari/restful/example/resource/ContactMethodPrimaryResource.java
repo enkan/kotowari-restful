@@ -87,8 +87,7 @@ public class ContactMethodPrimaryResource {
             case Ok<Customer> ok -> {
                 dsl.transaction(cfg -> {
                     CustomerRepository repo = new CustomerRepository(org.jooq.impl.DSL.using(cfg));
-                    CustomerWithIds updatedCwi = buildPromotedWithIds(existing, ok.value());
-                    repo.replaceContactMethodsWithIds(id.value(), updatedCwi);
+                    repo.replaceContactMethodsWithIds(id.value(), existing.withPromoted(ok.value()));
                     CustomerWithIds refreshed = repo.findByIdWithIds(id.value()).orElseThrow();
                     context.put(CUSTOMER_WITH_IDS, refreshed);
                 });
@@ -101,38 +100,6 @@ public class ContactMethodPrimaryResource {
                 yield Problem.fromViolationList(violations);
             }
         };
-    }
-
-    /**
-     * Builds a {@link CustomerWithIds} that reflects the promoted structure while preserving
-     * the original DB ids of each contact method row.
-     *
-     * <p>After {@link PromoteToPrimary} runs:
-     * <ul>
-     *   <li>The new primary CM is the secondary whose CM equals {@code target}.</li>
-     *   <li>The new secondary list starts with the old primary, followed by the remaining
-     *       secondaries in their original order (excluding the promoted one).</li>
-     * </ul>
-     *
-     * @param existing the original {@link CustomerWithIds} with stable DB ids
-     * @param promoted the new {@link Customer} returned by {@link PromoteToPrimary}
-     * @return a new {@link CustomerWithIds} with updated CM ordering and preserved ids
-     */
-    private static CustomerWithIds buildPromotedWithIds(CustomerWithIds existing, Customer promoted) {
-        ContactMethod newPrimary = promoted.primaryContactMethod();
-        long newPrimaryId = existing.secondaryCmIds().stream()
-                .filter(e -> e.getValue().equals(newPrimary))
-                .mapToLong(java.util.Map.Entry::getKey)
-                .findFirst()
-                .orElseThrow();
-
-        java.util.List<java.util.Map.Entry<Long, ContactMethod>> newSecondaries = new java.util.ArrayList<>();
-        newSecondaries.add(java.util.Map.entry(existing.primaryCmId(), existing.customer().primaryContactMethod()));
-        existing.secondaryCmIds().stream()
-                .filter(e -> e.getKey() != newPrimaryId)
-                .forEach(newSecondaries::add);
-
-        return new CustomerWithIds(promoted, newPrimaryId, java.util.List.copyOf(newSecondaries));
     }
 
     /**

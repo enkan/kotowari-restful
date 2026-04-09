@@ -1,5 +1,6 @@
 package kotowari.restful.example.data;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -18,4 +19,34 @@ public record CustomerWithIds(
         long primaryCmId,
         List<Map.Entry<Long, ContactMethod>> secondaryCmIds
 ) {
+    /**
+     * Builds a new {@link CustomerWithIds} reflecting a promote-to-primary operation,
+     * preserving the original DB ids of each contact method row.
+     *
+     * <p>The contact method in {@code promoted.primaryContactMethod()} is identified
+     * among the current secondaries by value equality, its DB id becomes the new
+     * primary id, and the old primary is prepended to the remaining secondaries in
+     * their original order.
+     *
+     * @param promoted the new {@link Customer} returned by the promotion behavior
+     * @return a new {@link CustomerWithIds} with updated CM ordering and preserved ids
+     * @throws java.util.NoSuchElementException if the promoted primary is not among the current secondaries
+     */
+    public CustomerWithIds withPromoted(Customer promoted) {
+        ContactMethod newPrimary = promoted.primaryContactMethod();
+        long newPrimaryId = secondaryCmIds.stream()
+                .filter(e -> e.getValue().equals(newPrimary))
+                .mapToLong(Map.Entry::getKey)
+                .findFirst()
+                .orElseThrow();
+
+        List<Map.Entry<Long, ContactMethod>> newSecondaries = new ArrayList<>(secondaryCmIds.size());
+        newSecondaries.add(Map.entry(primaryCmId, customer.primaryContactMethod()));
+        for (Map.Entry<Long, ContactMethod> e : secondaryCmIds) {
+            if (e.getKey() != newPrimaryId) {
+                newSecondaries.add(e);
+            }
+        }
+        return new CustomerWithIds(promoted, newPrimaryId, List.copyOf(newSecondaries));
+    }
 }
