@@ -1,8 +1,8 @@
 package kotowari.restful;
 
-import enkan.collection.Headers;
-import enkan.data.DefaultHttpRequest;
-import enkan.data.HttpRequest;
+import enkan.web.collection.Headers;
+import enkan.web.data.DefaultHttpRequest;
+import enkan.web.data.HttpRequest;
 import kotowari.restful.data.ApiResponse;
 import kotowari.restful.data.DefaultResource;
 import kotowari.restful.trace.RequestTrace;

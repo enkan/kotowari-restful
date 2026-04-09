@@ -1,7 +1,7 @@
 package kotowari.restful.decision;
 
-import enkan.data.DefaultHttpRequest;
-import enkan.data.HttpRequest;
+import enkan.web.data.DefaultHttpRequest;
+import enkan.web.data.HttpRequest;
 import kotowari.restful.data.ApiResponse;
 import kotowari.restful.data.Resource;
 import kotowari.restful.data.RestContext;

@@ -1,8 +1,8 @@
 package kotowari.restful.example.resource;
 
 import enkan.component.jackson.JacksonBeansConverter;
-import enkan.data.DefaultHttpRequest;
-import enkan.data.HttpRequest;
+import enkan.web.data.DefaultHttpRequest;
+import enkan.web.data.HttpRequest;
 import enkan.system.inject.ComponentInjector;
 import enkan.util.MixinUtils;
 import kotowari.data.BodyDeserializable;

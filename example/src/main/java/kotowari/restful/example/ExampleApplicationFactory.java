@@ -1,14 +1,14 @@
 package kotowari.restful.example;
 
 import enkan.Application;
-import enkan.application.WebApplication;
+import enkan.web.application.WebApplication;
 import enkan.config.ApplicationFactory;
-import enkan.data.HttpRequest;
-import enkan.data.HttpResponse;
-import enkan.middleware.ContentNegotiationMiddleware;
-import enkan.middleware.MultipartParamsMiddleware;
-import enkan.middleware.NestedParamsMiddleware;
-import enkan.middleware.ParamsMiddleware;
+import enkan.web.data.HttpRequest;
+import enkan.web.data.HttpResponse;
+import enkan.web.middleware.ContentNegotiationMiddleware;
+import enkan.web.middleware.MultipartParamsMiddleware;
+import enkan.web.middleware.NestedParamsMiddleware;
+import enkan.web.middleware.ParamsMiddleware;
 import enkan.middleware.jooq.JooqDslContextMiddleware;
 import enkan.system.inject.ComponentInjector;
 import kotowari.inject.ParameterInjector;

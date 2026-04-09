@@ -40,6 +40,8 @@ public class DefaultResource implements Resource {
             // User-customizable decisions
             entry(INITIALIZE_CONTEXT,     context -> true),
             entry(SERVICE_AVAILABLE,      TRUE),
+            entry(TOO_MANY_REQUESTS,      FALSE),
+            entry(PRECONDITION_REQUIRED,  FALSE),
             entry(KNOWN_METHOD,           testRequestMethod("GET", "HEAD", "OPTIONS", "POST", "PUT", "DELETE", "PATCH")),
             entry(URI_TOO_LONG,           FALSE),
             entry(METHOD_ALLOWED,         testRequestMethod("GET", "HEAD")),
@@ -110,6 +112,8 @@ public class DefaultResource implements Resource {
             entry(HANDLE_NOT_IMPLEMENTED, context -> "Not implemented."),
             entry(HANDLE_UNKNOWN_METHOD,  context -> "Unknown method."),
             entry(HANDLE_SERVICE_NOT_AVAILABLE, context -> "Service not available."),
+            entry(HANDLE_TOO_MANY_REQUESTS, context -> "Too many requests."),
+            entry(HANDLE_PRECONDITION_REQUIRED, context -> "Precondition required."),
             entry(HANDLE_OPTIONS,         context -> null)
         );
 

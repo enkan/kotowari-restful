@@ -51,6 +51,32 @@ public enum DecisionPoint {
     PROCESSABLE,
     RESPOND_WITH_ENTITY,
     SERVICE_AVAILABLE,
+    /**
+     * Rate-limit check per RFC 6585 §4. Returns {@code true} to return
+     * {@code 429 Too Many Requests}, {@code false} (the default) to allow
+     * the request through. Resources may stash a {@code Retry-After} value
+     * via {@link kotowari.restful.data.RestContext#addHeader(String, String)}.
+     *
+     * <p><b>OPTIONS bypass:</b> the engine always skips this decision for
+     * {@code OPTIONS} requests, so CORS preflight and capability-discovery
+     * requests are never rate-limited by the default graph. Resources that
+     * want to rate-limit {@code OPTIONS} can still do so by inspecting the
+     * request method from inside a custom {@code TOO_MANY_REQUESTS}
+     * function — but note that the default graph will short-circuit around
+     * the function for OPTIONS, so any such enforcement must be implemented
+     * outside the default decision path (e.g. via an enkan middleware).
+     */
+    TOO_MANY_REQUESTS,
+    /**
+     * Precondition requirement check per RFC 6585 §3. Returns {@code true}
+     * to reject the request with {@code 428 Precondition Required}, meaning
+     * the resource requires a precondition header such as {@code If-Match}
+     * or {@code If-Unmodified-Since} and the request did not supply one.
+     * Returns {@code false} (the default) to continue processing, meaning
+     * the request supplied the required precondition or the resource does
+     * not require one.
+     */
+    PRECONDITION_REQUIRED,
     UNMODIFIED_SINCE,
     URI_TOO_LONG,
     VALID_CONTENT_HEADER,
@@ -114,5 +140,7 @@ public enum DecisionPoint {
     HANDLE_EXCEPTION,
     HANDLE_NOT_IMPLEMENTED,
     HANDLE_UNKNOWN_METHOD,
-    HANDLE_SERVICE_NOT_AVAILABLE
+    HANDLE_SERVICE_NOT_AVAILABLE,
+    HANDLE_TOO_MANY_REQUESTS,
+    HANDLE_PRECONDITION_REQUIRED
 }

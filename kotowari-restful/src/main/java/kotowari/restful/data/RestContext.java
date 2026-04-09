@@ -1,7 +1,7 @@
 package kotowari.restful.data;
 
-import enkan.collection.Headers;
-import enkan.data.HttpRequest;
+import enkan.web.collection.Headers;
+import enkan.web.data.HttpRequest;
 import kotowari.restful.DecisionPoint;
 import kotowari.restful.trace.RequestTrace;
 import kotowari.restful.trace.TraceEntry;
@@ -67,6 +67,33 @@ public class RestContext {
      */
     public static final ContextKey<HttpDate> IF_UNMODIFIED_SINCE_DATE =
             ContextKey.of("ifUnmodifiedSinceDate", HttpDate.class);
+
+    /**
+     * Key for the parsed {@code Prefer} request header directives (RFC 7240).
+     * Populated by the {@code INITIALIZE_CONTEXT} action only when the
+     * request contains at least one recognized directive. If the key is
+     * absent, resources should treat it as equivalent to
+     * {@link PreferDirectives#NONE}.
+     *
+     * <p>Resources may inspect this to influence behavior beyond the automatic
+     * handling the engine performs (e.g. to honor {@code wait=N} by choosing
+     * synchronous vs asynchronous processing).
+     */
+    public static final ContextKey<PreferDirectives> PREFER_DIRECTIVES =
+            ContextKey.of("preferDirectives", PreferDirectives.class);
+
+    /**
+     * Key for the patch document parsed from a PATCH request body, keyed by
+     * media type. The body is stored under this key by the
+     * {@code KNOWN_CONTENT_TYPE} decision when the request is a PATCH and the
+     * {@code Content-Type} is one of the supported patch formats.
+     *
+     * <p>Resources handling {@code PATCH} can retrieve the parsed patch via
+     * {@link #get(ContextKey)} or accept a {@link PatchDocument} parameter and
+     * have it injected automatically.
+     */
+    public static final ContextKey<PatchDocument> PATCH_DOCUMENT =
+            ContextKey.of("patchDocument", PatchDocument.class);
 
     private final Resource resource;
     private final HttpRequest request;
