@@ -11,7 +11,7 @@
     <artifactId>kotowari-restful-parent</artifactId>
     <packaging>pom</packaging>
     <name>kotowari-restful-parent</name>
-    <version>0.15.0</version>
+    <version>0.15.2-SNAPSHOT</version>
     <description>Kotowari-Restful is a RESTful API specific framework.</description>
 
     <modules>
